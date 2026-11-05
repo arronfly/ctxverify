@@ -151,6 +151,16 @@ def check_consistency(pack: Pack, ctx: CheckContext) -> list[Finding]:
 
     for relation in pack.relations:
         entities = pack.entities_by_id()
+        if not relation.type.strip():
+            findings.append(
+                Finding(
+                    rule="status.inconsistent",
+                    severity="error",
+                    message=f"relation {relation.id} has no type",
+                    location=f"relations.json#{relation.id}",
+                    hint="the type says how the two entities relate; without it the edge says nothing",
+                )
+            )
         if relation.from_id not in entities:
             findings.append(
                 Finding(
