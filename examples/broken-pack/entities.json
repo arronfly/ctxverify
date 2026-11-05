@@ -1,0 +1,15 @@
+{
+  "entities": [
+    {
+      "id": "ent-001",
+      "name": "Compiler",
+      "type": "component",
+      "aliases": ["compiler"]
+    },
+    {
+      "id": "ent-002",
+      "name": "Nobody Uses This",
+      "type": "concept"
+    }
+  ]
+}

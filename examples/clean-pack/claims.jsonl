@@ -1,0 +1,2 @@
+{"id": "clm-001", "text": "A context pack is a portable container for the knowledge an agent is given.", "status": "verified", "confidence": 1.0, "evidence": ["ev-001"], "topics": ["ctxverify"]}
+{"id": "clm-002", "text": "Every claim needs a locator that points back to a place in a source.", "status": "verified", "confidence": 0.9, "evidence": ["ev-002"], "entities": ["ent-001"], "topics": ["ctxverify"]}

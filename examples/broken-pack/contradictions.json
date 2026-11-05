@@ -1,0 +1,11 @@
+{
+  "contradictions": [
+    {
+      "id": "con-001",
+      "claims": ["clm-001", "clm-002"],
+      "description": "One source says the wiki ships unchecked, another says it is checked before shipping.",
+      "status": "open",
+      "detected_at": "2026-11-05T00:00:00Z"
+    }
+  ]
+}

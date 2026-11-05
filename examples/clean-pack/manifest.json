@@ -1,0 +1,33 @@
+{
+  "format_version": "0.1",
+  "pack_id": "example-clean",
+  "title": "Example — a pack that passes",
+  "description": "A minimal, well-formed context pack. `ctxv check` reports zero findings on it.",
+  "generated_at": "2026-11-05T00:00:00Z",
+  "generator": {
+    "name": "handwritten",
+    "version": "1.0"
+  },
+  "sources": [
+    {
+      "id": "src-001",
+      "path": "sources/notes.md",
+      "title": "Working notes",
+      "kind": "file"
+    },
+    {
+      "id": "src-002",
+      "path": "sources/handbook.md",
+      "title": "The handbook",
+      "kind": "file"
+    }
+  ],
+  "stats": {
+    "claims": 2,
+    "evidence": 2,
+    "entities": 1,
+    "relations": 0,
+    "contradictions": 0,
+    "sources": 2
+  }
+}

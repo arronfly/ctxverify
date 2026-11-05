@@ -1,0 +1,22 @@
+{
+  "policy": {
+    "default_ttl_days": 180,
+    "per_topic": {
+      "ctxverify": 90
+    }
+  },
+  "claims": {
+    "clm-001": {
+      "source_date": "2026-11-01",
+      "reviewed_at": "2026-11-05",
+      "expires_at": "2027-02-01",
+      "decay": "linear"
+    },
+    "clm-002": {
+      "source_date": "2026-11-01",
+      "reviewed_at": "2026-11-05",
+      "expires_at": "2027-02-01",
+      "decay": "linear"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "format_version": "0.1",
+  "pack_id": "example-broken",
+  "title": "Example — a pack with something wrong in it",
+  "description": "Every planted defect here corresponds to a rule in the catalogue. Run ctxv check on this directory to see them.",
+  "generated_at": "2026-11-05T00:00:00Z",
+  "generator": {
+    "name": "handwritten",
+    "version": "1.0"
+  },
+  "sources": [
+    {
+      "id": "src-001",
+      "path": "notes/C-001_Alpha.md",
+      "title": "Alpha note",
+      "kind": "file"
+    },
+    {
+      "id": "src-002",
+      "path": "notes/C-002_Beta.md",
+      "title": "Beta note",
+      "kind": "file"
+    },
+    {
+      "id": "src-003",
+      "path": "notes/C-001_Gamma.md",
+      "title": "Gamma note — reuses the C-001 number",
+      "kind": "file"
+    },
+    {
+      "id": "src-004",
+      "path": "notes/never-read.md",
+      "title": "A source nothing cites",
+      "kind": "file"
+    }
+  ]
+}

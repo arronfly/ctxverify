@@ -1,0 +1,10 @@
+{
+  "entities": [
+    {
+      "id": "ent-001",
+      "name": "Locator",
+      "type": "concept",
+      "aliases": ["locators"]
+    }
+  ]
+}

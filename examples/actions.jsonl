@@ -1,0 +1,5 @@
+{"id": "a-001", "action": "archived", "path": "notes/C-001_Context Packs.md"}
+{"id": "a-002", "action": "moved", "path": "concepts/C-001_Context Packs.md", "from": "notes/C-001_Context Packs.md"}
+{"id": "a-003", "action": "wrote", "path": "concepts/C-003_Linting.md", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+{"id": "a-004", "action": "deleted", "path": "notes/old-draft.md"}
+{"id": "a-005", "action": "archived", "paths": ["concepts/C-002_Evidence.md", "concepts/C-999_NotThere.md"], "count": 2}

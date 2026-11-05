@@ -1,0 +1,9 @@
+{"id": "clm-001", "text": "The compiler emits a wiki with citations.", "status": "verified", "confidence": 0.8, "evidence": ["ev-001"], "topics": ["compile"], "links": [{"target": "[[Missing Note]]", "resolved": null}]}
+{"id": "clm-002", "text": "The wiki is checked before it ships.", "status": "verified", "confidence": 0.8, "evidence": [], "topics": ["check"]}
+{"id": "clm-003", "text": "A broken citation is worse than no citation.", "status": "asserted", "confidence": 0.5, "evidence": ["ev-002"], "topics": ["check"]}
+{"id": "clm-003", "text": "A duplicate id overwrites a record in any consumer.", "status": "asserted", "confidence": 0.5, "evidence": [], "topics": ["ids"]}
+{"id": "clm-005", "text": "Freshness windows are reviewed quarterly.", "status": "asserted", "confidence": 0.4, "evidence": ["ev-003"], "topics": ["freshness"]}
+{"id": "clm-006", "text": "Most packs in the wild are stale.", "status": "inferred", "confidence": 0.3, "evidence": [], "topics": ["freshness"]}
+{"id": "clm-007", "text": "The linter exits non-zero when it finds an error.", "status": "verified", "confidence": 1.0, "evidence": ["ev-004"], "topics": ["cli"]}
+{"id": "clm-008", "text": "The linter exits non-zero when it finds an error.", "status": "verified", "confidence": 1.0, "evidence": [], "topics": ["cli"]}
+{"id": "clm-009", "text": "Never write api_key = EXAMPLEEXAMPLEEXAMPLEEXAMPLE into a pack.", "status": "asserted", "confidence": 1.0, "evidence": [], "topics": ["hygiene"]}

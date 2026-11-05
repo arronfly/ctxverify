@@ -1,0 +1,47 @@
+name: ctxverify
+description: Check a context pack — broken provenance, dangling references, duplicate ids, stale claims, leaked credentials.
+author: Aaron Chang
+
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  pack:
+    description: Path to the context pack directory.
+    required: false
+    default: "."
+  strict:
+    description: Treat warnings as failures too.
+    required: false
+    default: "false"
+  min-severity:
+    description: "Only report findings at or above this severity: error, warning, info. Display filter only; the exit code always reflects every finding."
+    required: false
+    default: "info"
+  python-version:
+    description: Python version used to run the checker.
+    required: false
+    default: "3.11"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install ctxverify
+      shell: bash
+      run: python -m pip install --disable-pip-version-check ctxverify
+
+    - name: Check the pack
+      shell: bash
+      run: |
+        set -o pipefail
+        args=(check "${{ inputs.pack }}" --min-severity "${{ inputs.min-severity }}")
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          args+=(--strict)
+        fi
+        ctxv "${args[@]}"

@@ -1,0 +1,12 @@
+ctxverify
+Copyright 2026 Aaron Chang
+
+This product includes software developed by Aaron Chang. The source code of
+this project is licensed under the Apache License, Version 2.0; see LICENSE.
+
+SPEC.md, the specification of the Context Pack Format, is licensed separately
+under the Creative Commons Attribution 4.0 International license (CC-BY-4.0);
+see LICENSE-SPEC and https://creativecommons.org/licenses/by/4.0/. The
+specification is kept under a separate license from the code so that third
+parties may implement the format, in their own code and under their own
+license, without inheriting the Apache-2.0 license of this implementation.

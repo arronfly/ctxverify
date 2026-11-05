@@ -1,0 +1,11 @@
+{
+  "relations": [
+    {
+      "id": "rel-001",
+      "from": "ent-001",
+      "to": "ent-404",
+      "type": "produces",
+      "evidence": ["ev-404"]
+    }
+  ]
+}

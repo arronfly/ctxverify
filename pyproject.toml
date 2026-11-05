@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ctxverify"
+version = "0.1.0"
+description = "A linter and verifier for agent context packs: provenance, links, ids, freshness, hygiene."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Aaron Chang" }]
+keywords = ["context", "agent", "knowledge", "lint", "provenance", "mcp", "llm"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.urls]
+Homepage = "https://github.com/arronfly/ctxverify"
+Repository = "https://github.com/arronfly/ctxverify"
+Issues = "https://github.com/arronfly/ctxverify/issues"
+
+[project.scripts]
+ctxv = "ctxverify.cli:main"
+ctxverify = "ctxverify.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ctxverify"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,16 @@
+{
+  "policy": {
+    "default_ttl_days": 180
+  },
+  "claims": {
+    "clm-005": {
+      "source_date": "2025-01-01",
+      "reviewed_at": "2025-02-01",
+      "expires_at": "2025-08-01",
+      "decay": "linear"
+    },
+    "clm-006": {
+      "source_date": "2024-01-01"
+    }
+  }
+}

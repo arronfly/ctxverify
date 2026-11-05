@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Context Pack Format (SPEC.md)
+    url: https://github.com/arronfly/ctxverify/blob/main/SPEC.md
+    about: The format specification, including the version rules and the conformance requirements.
+  - name: Rule catalogue
+    url: https://github.com/arronfly/ctxverify/blob/main/docs/rules.md
+    about: What each of the sixteen rules detects, why it matters, and how to fix what it reports.

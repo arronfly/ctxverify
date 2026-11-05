@@ -1,0 +1,14 @@
+# The ctxverify hook expects a pack directory, not a list of files, so it is
+# invoked with `args: [<pack path>]` in the consuming repository's
+# .pre-commit-config.yaml. The path defaults to the current directory when no
+# argument is given.
+#
+# The `files` pattern below matches the pack's own files. Adjust it to point at
+# your pack directory; pre-commit applies it to the changed paths, and the
+# hook itself is told which directory to check through `args`.
+- id: ctxverify
+  name: ctxverify — check the context pack
+  entry: ctxv check
+  language: python
+  files: \.(json|jsonl)$
+  pass_filenames: false
