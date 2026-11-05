@@ -262,7 +262,7 @@ jobs:
           strict: true
 ```
 
-The action pins the version: it installs `ctxverify==0.1.0` from PyPI and runs `ctxv check`, so a tag never silently runs a later release. It fails on exit code `1` or `2`. Its `min-severity` input defaults to `info`, so the log shows everything unless you narrow it. Filtering is display-only, so it never weakens the gate: `strict: true` fails the job on a pack that has warnings or information findings, and `min-severity` only decides how much of that is printed. Lower it when the log is noisy, not to make the job pass.
+The action installs ctxverify from its own checkout and runs `ctxv check`, so a tagged action runs the code in that tag and does not depend on PyPI. It fails on exit code `1` or `2`. Its `min-severity` input defaults to `info`, so the log shows everything unless you narrow it. Filtering is display-only, so it never weakens the gate: `strict: true` fails the job on a pack that has warnings or information findings, and `min-severity` only decides how much of that is printed. Lower it when the log is noisy, not to make the job pass.
 
 For SARIF upload to code scanning, run the CLI directly:
 

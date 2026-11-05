@@ -144,6 +144,12 @@ For the field-by-field guide to producing a pack, see [docs/format.md](docs/form
 pip install ctxverify
 ```
 
+The package is also installable straight from the repository:
+
+```bash
+pip install git+https://github.com/arronfly/ctxverify.git
+```
+
 From a checkout:
 
 ```bash
@@ -267,7 +273,7 @@ jobs:
           strict: true
 ```
 
-The action pins the version: it installs `ctxverify==0.1.0` from PyPI, runs `ctxv check`, and fails the job on exit code `1` or `2`. A tag never silently runs a later release. `min-severity` defaults to `info`, so every finding is printed unless you ask for less. Severity filtering is a display filter: it changes what the log shows, never what the job gates on, so `strict: true` now genuinely fails the job on a pack that has warnings or information findings.
+The action installs ctxverify from its own checkout, so a tagged action runs the code in that tag and works on the day the repository is published. It runs `ctxv check` and fails the job on exit code `1` or `2`. `min-severity` defaults to `info`, so every finding is printed unless you ask for less. Severity filtering is a display filter: it changes what the log shows, never what the job gates on, so `strict: true` now genuinely fails the job on a pack that has warnings or information findings.
 
 For SARIF upload to code scanning, run the CLI directly:
 

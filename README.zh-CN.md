@@ -144,6 +144,12 @@ pack/
 pip install ctxverify
 ```
 
+也可以直接从仓库装：
+
+```bash
+pip install git+https://github.com/arronfly/ctxverify.git
+```
+
 从源码安装：
 
 ```bash
@@ -266,7 +272,7 @@ jobs:
           strict: true
 ```
 
-action 会固定版本：从 PyPI 安装 `ctxverify==0.1.0`，运行 `ctxv check`，退出码为 `1` 或 `2` 时让 job 失败。一个 tag 不会悄悄跑成更晚的发布版。`min-severity` 默认是 `info`，因此除非你主动收窄，所有 findings 都会打印。严重度过滤只是显示过滤：它改变日志内容，不改变闸门，所以 `strict: true` 现在会真的因为 warning 或 info 让 job 失败。
+action 从自己的 checkout 安装，因此打了 tag 的 action 跑的就是那个 tag 里的代码，仓库发布当天就能用。它运行 `ctxv check`，退出码为 `1` 或 `2` 时让 job 失败。`min-severity` 默认是 `info`，因此除非你主动收窄，所有 findings 都会打印。严重度过滤只是显示过滤：它改变日志内容，不改变闸门，所以 `strict: true` 现在会真的因为 warning 或 info 让 job 失败。
 
 如果要把 SARIF 上传到 code scanning，直接运行 CLI：
 

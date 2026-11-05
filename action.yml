@@ -34,9 +34,10 @@ runs:
 
     - name: Install ctxverify
       shell: bash
-      # Pinned: an action tagged v0.1.0 must not silently run a later
-      # release, or the tag means nothing.
-      run: python -m pip install --disable-pip-version-check "ctxverify==0.1.0"
+      # Installed from this checkout rather than from PyPI, so that the action
+      # runs the code in the tag it is pinned to and works on the day the
+      # repository is published.
+      run: python -m pip install --disable-pip-version-check "${{ github.action_path }}"
 
     - name: Check the pack
       shell: bash
