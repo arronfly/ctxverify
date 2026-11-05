@@ -22,6 +22,8 @@ There are four integration points.
 | `get_claim` | `path`, `claim_id` | One claim plus its evidence, source paths, locators and quote previews |
 | `verify_actions` | `actions`, `root` | `{"verified": bool, "findings": [...]}` |
 
+`strict` is honoured by `check_pack`: warnings and information findings make the verdict `fail` when it is set. `get_claim` for an id that is not in the pack returns `isError: true` with the message, rather than a success payload with no claim. `list_claims` with `limit: 0` returns no claims; an absent `limit` defaults to 100.
+
 ### Claude Code
 
 Project scope, `.mcp.json` in the repository root:
@@ -62,7 +64,7 @@ Use an absolute path. The server process inherits the working directory of the c
 
 ### What the agent sees
 
-A `check_pack` call returns the same report object as `ctxv check --format json`, plus a `verdict` of `pass` or `fail`:
+A `check_pack` call returns the same report object as `ctxv check --format json`, plus a `verdict` of `pass` or `fail`. One case differs: an unreadable pack makes the CLI exit `2` with no JSON on stdout, while the MCP tool returns `isError: true` with the message in its content. The agent sees the reason either way, but a client that parses the payload must check `isError` before it reads a report that is not there.
 
 ```json
 {
@@ -165,7 +167,7 @@ ERROR   action.unverified — Reported actions really happened
     - action a-005 reports 'concepts/C-999_NotThere.md' as archived, but it does not exist  actions.jsonl#a-005
 ```
 
-Exit code `0` means every record is consistent with the filesystem. Exit code `1` means at least one record is not. Exit code `2` means the actions file could not be read; `ctxv check --actions <file>` returns the same `2` for the same file, so the two commands agree on what an unreadable input means.
+Exit code `0` means every record is consistent with the filesystem. Exit code `1` means at least one record is not. Exit code `2` means the actions file could not be read, or one of its lines is valid JSON that is not an object; `ctxv check --actions <file>` returns the same `2` for the same file, so the two commands agree on what an unusable input means.
 
 ### Action semantics
 
@@ -179,7 +181,10 @@ Exit code `0` means every record is consistent with the filesystem. Exit code `1
 
 Other checks:
 
-- `count`, when supplied, must equal the number of paths.
+- `count`, when supplied, must be readable as an integer and must equal the number of paths.
+- `paths`, when supplied, must be a list.
+- A `moved` record must name a `from` path: a move has two ends, and without the old one there is nothing to check.
+- Every path, `from` included, must stay inside the root. An absolute path, a `~` path or one that resolves outside the root is reported as "names a path outside the root" and is not stat'd. The root is a boundary: it stops an agent from using the verifier to confirm the existence of, and disclose the hash of, any file the user can read.
 - `sha256` is checked for any action when the file exists and is a regular file.
 - Unknown action names and records with no path are findings.
 
@@ -236,7 +241,7 @@ The process exit code is the contract:
 |---|---|
 | `0` | Pass |
 | `1` | Fail: blocking findings |
-| `2` | Fail: the pack or the actions file could not be read, or the command line is invalid |
+| `2` | Fail: the pack or the actions file could not be read, an actions line is not a JSON object, or the command line is invalid, including an unknown `--rule` or `--exclude-rule` value |
 
 The text header, the JSON `status` field and the exit code all agree, including under `--strict`: a pack with warnings renders `FAIL`, reports `"status": "fail"` and exits `1`. The JSON output also carries `"strict": true`. `min-severity` cannot change any of them, because it is a display filter applied after the exit code is computed. Gate on the exit code.
 
@@ -257,7 +262,7 @@ jobs:
           strict: true
 ```
 
-The action installs `ctxverify` from PyPI and runs `ctxv check`. It fails on exit code `1` or `2`. Its `min-severity` input defaults to `info`, so the log shows everything unless you narrow it. Filtering is display-only, so it never weakens the gate: `strict: true` fails the job on a pack that has warnings or information findings, and `min-severity` only decides how much of that is printed. Lower it when the log is noisy, not to make the job pass.
+The action pins the version: it installs `ctxverify==0.1.0` from PyPI and runs `ctxv check`, so a tag never silently runs a later release. It fails on exit code `1` or `2`. Its `min-severity` input defaults to `info`, so the log shows everything unless you narrow it. Filtering is display-only, so it never weakens the gate: `strict: true` fails the job on a pack that has warnings or information findings, and `min-severity` only decides how much of that is printed. Lower it when the log is noisy, not to make the job pass.
 
 For SARIF upload to code scanning, run the CLI directly:
 
@@ -286,11 +291,13 @@ jobs:
         run: ctxv check ./pack
 ```
 
+SARIF artifact locations are repository-relative: a location like `claims.jsonl#clm-001` stays as it is, and an absolute path is rewritten relative to the working directory when that works and dropped to the pack directory when it does not. That is what lets code scanning attach a finding to a file it can open.
+
 If you only need the gate, drop the SARIF steps and keep the last one. If you want warnings to block, add `--strict` to the gate command; the log says `FAIL` and the JSON `status` says `fail`, so the report and the exit code tell the same story.
 
 ## A note on rule selection
 
-`--rule` and `--exclude-rule` accept a check group or a full rule id. The group names are `actions`, `consistency`, `duplicates`, `freshness`, `hygiene`, `identity`, `links`, `orphans` and `provenance`:
+`--rule` and `--exclude-rule` accept a check group or a full rule id. An unknown value is a usage error: the tool prints `ctxverify: unknown rule or check group: <name>`, lists the known groups and exits `2`, rather than silently selecting nothing. The group names are `actions`, `consistency`, `duplicates`, `freshness`, `hygiene`, `identity`, `links`, `orphans` and `provenance`:
 
 ```bash
 ctxv check ./pack --rule provenance
@@ -298,7 +305,7 @@ ctxv check ./pack --rule provenance.missing
 ctxv check ./pack --exclude-rule hygiene
 ```
 
-Groups are usually the part of a rule id before the dot. The exception is `action.unverified`, whose group is `actions`, not `action`. A full rule id resolves to its group and then narrows the report to that one rule, so `--rule provenance.missing` reports only `provenance.missing` findings and `--exclude-rule provenance.missing` skips only those. You can generate these flags from a rule id directly; strip to the prefix only if you want the whole group. Loader findings (`pack.structure`) are always included when `--rule` narrows the selection; `--exclude-rule pack.structure` drops them.
+Groups are usually the part of a rule id before the dot. The exception is `action.unverified`, whose group is `actions`, not `action`. A full rule id resolves to its group and then narrows the report to that one rule, so `--rule provenance.missing` reports only `provenance.missing` findings and `--exclude-rule provenance.missing` skips only those. You can generate these flags from a rule id directly; strip to the prefix only if you want the whole group. Loader findings (`pack.structure`) and `ctxverify.internal` are always included when `--rule` narrows the selection; `--exclude-rule pack.structure` and `--exclude-rule ctxverify.internal` drop them.
 
 ## Troubleshooting
 

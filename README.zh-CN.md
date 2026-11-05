@@ -195,8 +195,8 @@ ctxverify 0.1.0 — examples/clean-pack
 |---|---|
 | `--format text\|json\|sarif` | 输出格式。默认 `text` |
 | `--strict` | 除了 error，warning 和 info 也让退出码为 1 |
-| `--rule <check>` | 只运行这一组检查，或只保留完整 rule id 所指定那条规则的 findings。可重复。组名就是 `ctxv rules` 末尾打印的 check 名：`actions`、`consistency`、`duplicates`、`freshness`、`hygiene`、`identity`、`links`、`orphans`、`provenance`。通常是 rule id 点号前的部分；例外是 `action.unverified`，它的组名是 `actions`。`--rule provenance` 运行整组；`--rule provenance.missing` 运行该组但只报 `provenance.missing` 的 findings。用 `--rule` 收窄时，loader 产生的 `pack.structure` findings 始终出现 |
-| `--exclude-rule <check>` | 跳过这一组检查，或只跳过指定的那一条规则。命名规则与 `--rule` 相同：`--exclude-rule hygiene` 跳过两条 hygiene 规则，`--exclude-rule hygiene.secret` 只跳过这一条 |
+| `--rule <check>` | 只运行这一组检查，或只保留完整 rule id 所指定那条规则的 findings。可重复。组名就是 `ctxv rules` 末尾打印的 check 名：`actions`、`consistency`、`duplicates`、`freshness`、`hygiene`、`identity`、`links`、`orphans`、`provenance`。通常是 rule id 点号前的部分；例外是 `action.unverified`，它的组名是 `actions`。`--rule provenance` 运行整组；`--rule provenance.missing` 运行该组但只报 `provenance.missing` 的 findings。未知的 rule id 或组名是用法错误：工具会打印 `ctxverify: unknown rule or check group: <name>`，列出已知的组并退出 `2`，而不是什么都没选中。用 `--rule` 收窄时，loader 产生的 `pack.structure` 与 `ctxverify.internal` findings 始终出现 |
+| `--exclude-rule <check>` | 跳过这一组检查，或只跳过指定的那一条规则。命名规则与 `--rule` 相同：`--exclude-rule hygiene` 跳过两条 hygiene 规则，`--exclude-rule hygiene.secret` 只跳过这一条。未知值同样是用法错误 |
 | `--min-severity error\|warning\|info` | 显示过滤器：只列出不低于该严重度的 findings。表头的计数和 PASS/FAIL 仍然描述整个 pack，退出码也仍然反映全部 findings，因此过滤不会掩盖失败 |
 | `--no-pii` | 跳过 `hygiene.pii`。`hygiene.secret` 仍然运行 |
 | `--scan-text-links` | 同时解析 claim 正文里的 `[[wikilinks]]` |
@@ -211,7 +211,7 @@ ctxverify 0.1.0 — examples/clean-pack
 |---|---|
 | `0` | 干净。没有 error。除非设置 `--strict`，warning 和 info 可以通过 |
 | `1` | 有阻断性 findings：至少一个 error，或 `--strict` 下的任意 finding |
-| `2` | pack 完全无法打开：目录不存在、不是目录。`ctxv check --actions <file>` 与 `ctxv verify-actions <file>` 在读不了 actions 文件时都返回 `2`。非法命令行也会由 argparse 返回 `2` |
+| `2` | pack 完全无法打开：目录不存在、不是目录。`ctxv check --actions <file>` 与 `ctxv verify-actions <file>` 在读不了 actions 文件、或文件里某一行是合法 JSON 但不是对象时，都返回 `2`。非法命令行也会由 argparse 返回 `2`；未知的 `--rule` 或 `--exclude-rule` 值同样返回 `2` |
 
 目录存在但缺少必需文件时退出码是 `1`，不是 `2`。工具能打开目录，因此报 `pack.structure`。
 
@@ -221,14 +221,14 @@ ctxverify 0.1.0 — examples/clean-pack
 
 | Rule id | 默认严重度 | 检测内容 |
 |---|---|---|
-| `pack.structure` | error / info | 必需文件缺失；`.json` 文件为空或无法解析；`entities.json`、`relations.json` 或 `contradictions.json` 不是带集合数组的对象，或 `freshness.json` 不是对象；格式版本主版本号不同（error）。同一主版本下的更新次版本会被读取并报为 info |
+| `pack.structure` | error / info | 必需文件缺失；`.json` 文件为空或无法解析；manifest 缺少 `pack_id` 或 `sources`，或某个字段类型不对；`entities.json`、`relations.json` 或 `contradictions.json` 不是带集合数组的对象，或 `freshness.json` 不是对象；某个新鲜度 TTL 不是非负数；某个 source path 越出 pack；格式版本不是 `MAJOR.MINOR` 或主版本号不同（error）。同一主版本下的更新次版本会被读取并报为 info |
 | `provenance.missing` | error / warning | `verified` claim 没有 evidence（error）；`asserted` claim 没有 evidence（warning） |
 | `provenance.dangling` | error | evidence 指向不存在的 claim 或 source，或 claim 指向不存在的 evidence |
 | `provenance.quote` | error | evidence 引文为空，或记录的 sha256 与引文文本不匹配 |
 | `links.broken` | error | claim 的链接解析不到 manifest 里的任何文件。来源别名可以解析；实体名不可以，会附带「用 claim 的 `entities` 字段」的提示 |
 | `ids.duplicate` | error | 同一集合内 id 重复，或 id 为空 |
 | `ids.collision` | error | 同一命名空间内两个来源文件声明同一个编号，例如 `C-001` |
-| `status.inconsistent` | error / warning | 状态义务和引用对不上。结构性问题为 error；缺少理由或矛盾条目为 warning |
+| `status.inconsistent` | error / warning | 状态义务和引用对不上，包括 relation 没有 `type`。结构性问题为 error；缺少理由或矛盾条目为 warning |
 | `contradiction.unresolved` | warning / error | 矛盾处于 open、标为 resolved 但没有 resolution 文本、或少于两条 claim（warning）；引用了不存在的 claim（error） |
 | `freshness.stale` | warning | 复核窗口已过期，或 claim 超过策略 TTL 未复核 |
 | `duplicate.claim` | warning | 两条 claim 的规范化文本相同 |
@@ -266,7 +266,7 @@ jobs:
           strict: true
 ```
 
-action 会从 PyPI 安装 `ctxverify`，运行 `ctxv check`，退出码为 `1` 或 `2` 时让 job 失败。`min-severity` 默认是 `info`，因此除非你主动收窄，所有 findings 都会打印。严重度过滤只是显示过滤：它改变日志内容，不改变闸门，所以 `strict: true` 现在会真的因为 warning 或 info 让 job 失败。
+action 会固定版本：从 PyPI 安装 `ctxverify==0.1.0`，运行 `ctxv check`，退出码为 `1` 或 `2` 时让 job 失败。一个 tag 不会悄悄跑成更晚的发布版。`min-severity` 默认是 `info`，因此除非你主动收窄，所有 findings 都会打印。严重度过滤只是显示过滤：它改变日志内容，不改变闸门，所以 `strict: true` 现在会真的因为 warning 或 info 让 job 失败。
 
 如果要把 SARIF 上传到 code scanning，直接运行 CLI：
 
@@ -295,7 +295,7 @@ jobs:
         run: ctxv check ./pack
 ```
 
-第一步即使检查失败也会写出 SARIF。最后一步是闸门：退出码 `1` 会让 job 失败；pack 无法读取时的 `2` 也会让 job 失败。
+第一步即使检查失败也会写出 SARIF。SARIF 里的 artifact 位置是相对仓库的，code scanning 才能把 finding 挂到文件上：`claims.jsonl#clm-001` 原样保留，绝对路径在可行时改写为相对当前工作目录的路径，不可行时退回 pack 目录。最后一步是闸门：退出码 `1` 会让 job 失败；pack 无法读取时的 `2` 也会让 job 失败。
 
 pre-commit：
 
@@ -340,7 +340,7 @@ repos:
 | `get_claim` | 返回一条 claim 及其 evidence 和来源路径。参数：`path`、`claim_id` |
 | `verify_actions` | 对照文件系统检查报告的动作。参数：`actions`、`root` |
 
-`check_pack` 的行为与 CLI 一致。它返回 `verdict`（`pass` 或 `fail`）、`status`、`strict`、`counts`（列出的 findings）、`reported`（列出条数）、`total_findings`（本次运行的产出条数）和 `total_counts`（本次运行产生的全部 findings 的计数）。`min_severity` 只过滤列表：`verdict`、`status` 和 `total_counts` 始终描述过滤之前的这次运行。`strict` 会被采纳，因此传入 `strict: true` 时，一个只有 warning、没有 error 的 pack 也会返回 `verdict: "fail"` 和 `status: "fail"`。
+`check_pack` 的行为与 CLI 一致。它返回 `verdict`（`pass` 或 `fail`）、`status`、`strict`、`counts`（列出的 findings）、`reported`（列出条数）、`total_findings`（本次运行的产出条数）和 `total_counts`（本次运行产生的全部 findings 的计数）。`min_severity` 只过滤列表：`verdict`、`status` 和 `total_counts` 始终描述过滤之前的这次运行。`strict` 会被采纳，因此传入 `strict: true` 时，一个只有 warning、没有 error 的 pack 也会返回 `verdict: "fail"` 和 `status: "fail"`。`get_claim` 对不存在的 claim id 返回 `isError: true`；`list_claims` 传 `limit: 0` 返回空列表。与 CLI 的唯一差别是 pack 读不了：CLI 退出 `2` 且不输出 JSON，而 MCP 工具返回 `isError: true` 并在内容里带上错误信息。
 
 Claude Code，项目级，`.mcp.json`：
 

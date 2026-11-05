@@ -1,6 +1,6 @@
 # Rule catalogue
 
-This is the reference for every rule in `ctxverify 0.1.0`. Rule ids are stable and are part of the public contract: CI configurations select them, and reports carry them. Do not rename an existing id.
+This is the reference for every rule in `ctxverify 0.1.0`: sixteen rules about packs, plus `ctxverify.internal`, which reports ctxverify's own bugs. Rule ids are stable and are part of the public contract: CI configurations select them, and reports carry them. Do not rename an existing id.
 
 Each finding has a rule id, a severity, a message, an optional location and an optional hint. The rule registry assigns every rule a default severity, but some rules emit findings at more than one severity depending on what they find. Both levels are documented below.
 
@@ -22,7 +22,7 @@ A full rule id resolves to the group that implements it, and then narrows the re
 | `orphans` | `orphan.source`, `orphan.entity` |
 | `provenance` | `provenance.missing`, `provenance.dangling`, `provenance.quote` |
 
-`pack.structure` is emitted by the loader, not by a registered check. It always appears in the report, even when `--rule` selects another group or another rule, because a pack that cannot be parsed cannot be judged. `--exclude-rule pack.structure` is the one way to drop it. `ctxv rules` prints the registered check names at the end of its output.
+`pack.structure` and `ctxverify.internal` are the two rules that do not come from a check group. `pack.structure` is emitted by the loader, and `ctxverify.internal` by the check runner when a check raises. Both always appear in the report, even when `--rule` selects another group or another rule: a pack that cannot be parsed cannot be judged, and a tool that crashed still has to say so. `--exclude-rule pack.structure` and `--exclude-rule ctxverify.internal` are the only way to drop them. `ctxv rules` prints the registered check names at the end of its output.
 
 ## Severity and exit codes
 
@@ -49,17 +49,23 @@ The JSON payload keeps the two views in separate fields. `findings` and `counts`
 - A `.json` file is not valid JSON.
 - A JSONL file has a line that is not valid JSON, or a line that is not a JSON object.
 - `manifest.json` does not contain a JSON object.
+- `manifest.json` omits a required field: `pack_id` or `sources`.
+- `manifest.json` gives a field the wrong type: `generator`, `stats` and `verification` must be objects, and `sources` must be an array of objects.
 - `entities.json`, `relations.json` or `contradictions.json` is not an object holding an `entities`, `relations` or `contradictions` array. A bare array, an empty object and a wrong key all produce an error naming the file and the expected key.
-- `freshness.json` is not a JSON object. A bare array is an error rather than an empty policy.
+- `freshness.json` is not a JSON object. A bare array is an error rather than an empty policy. Its `policy` must be an object, `policy.per_topic` must be an object, and a `claims` value that is not an object is an error when it holds anything.
+- A claim's `evidence`, `entities`, `topics` or `links` value is not an array, or an evidence record's `locator` is not an object.
+- A source `path` is missing, is not a string, or names a location outside the pack: an absolute path, a `~` path, or one that climbs out through `..`.
+- `manifest.json` declares a `format_version` that is not `MAJOR.MINOR`. `0` and `0.1.5` are both errors; only a version shaped like `0.1` is accepted.
 - `manifest.json` declares a `format_version` with a different major version. This build implements `0.1`, so `1.0` is an error.
+- `freshness.json` policy has a `default_ttl_days` or `per_topic` value that is not a number, or that is negative. The bad value is reported and is not applied, so a policy of `-5` days does not also make every claim stale.
 
 At info severity:
 
 - `manifest.json` declares a newer minor of the same major, such as `0.2`. The pack is read, because minors are additive by rule, and the finding says so.
 
-**Failure mode:** A pipeline writes `entities.json` as a string or with the wrong top-level key, or a merge conflict leaves `<<<<<<<` inside `claims.jsonl`. `ctxverify` names the malformed collection file instead of reading it as empty: the records are missing, and the report says why rather than letting the references fail one by one elsewhere.
+**Failure mode:** A pipeline writes `entities.json` as a string or with the wrong top-level key, or a merge conflict leaves `<<<<<<<` inside `claims.jsonl`. `ctxverify` names the malformed collection file instead of reading it as empty: the records are missing, and the report says why rather than letting the references fail one by one elsewhere. A field of the wrong type is a subtler case: the reader coerces it so the rest of the pack is still checked, and the finding names the field and the type it got.
 
-**Fix:** Run `ctxv init <dir>` for a conforming skeleton. For a bad line, the finding names the file and line number. For a major-version mismatch, upgrade the linter or pin the pack to `0.1`. For a wrong collection shape, write `{"entities": [...]}`, `{"relations": [...]}` or `{"contradictions": [...]}`; the finding carries the exact shape as its hint. `freshness.json` must be `{"policy": {...}, "claims": {...}}`.
+**Fix:** Run `ctxv init <dir>` for a conforming skeleton. For a bad line, the finding names the file and line number. For a major-version mismatch, upgrade the linter or pin the pack to `0.1`. For a version that is not `MAJOR.MINOR`, write it as `0.1`. For a wrong collection shape, write `{"entities": [...]}`, `{"relations": [...]}` or `{"contradictions": [...]}`; the finding carries the exact shape as its hint. `freshness.json` must be `{"policy": {...}, "claims": {...}}`, and every TTL in the policy must be a non-negative number.
 
 ## provenance.missing
 
@@ -82,6 +88,7 @@ At info severity:
 
 - An evidence record whose `claim_id` names no claim in the pack.
 - An evidence record whose `source_id` names no source in `manifest.json`.
+- An evidence record whose `claim_id` or `source_id` is empty. An empty id names nothing, so it is reported the same way as an id that names the wrong record.
 - A claim whose `evidence` list names an evidence id that does not exist.
 
 **Failure mode:** A recompile assigns new claim ids but keeps the old evidence file from the previous build. Every quote still exists, every claim still exists, and none of them point at each other. A consumer that joins on ids gets an empty result and reports no evidence, or worse, joins the wrong pair.
@@ -101,7 +108,7 @@ At info severity:
 
 **Fix:** Restore the original quote, or recompute `quote_sha256` after a deliberate edit and record why the quote changed. Never leave a quote empty; if there is no quotable text, the claim has no evidence.
 
-The check compares the quote to its own recorded hash. It does not fetch the source file and confirm that the quote appears there.
+The check compares the quote to its own recorded hash, case-insensitively: an upper-case hex digest is accepted. It does not fetch the source file and confirm that the quote appears there.
 
 ## links.broken
 
@@ -109,8 +116,8 @@ The check compares the quote to its own recorded hash. It does not fetch the sou
 
 **Detects:**
 
-- A link on a claim whose `resolved` field names a path that is not in the manifest source list.
-- A link on a claim without a `resolved` field whose target does not resolve against the manifest paths and source aliases.
+- A link on a claim whose `resolved` field names a path that is not in the manifest source list. The path is compared case-insensitively, the way the resolver compares it, so `Notes/A.MD` matches `notes/a.md`.
+- A link on a claim whose `resolved` is absent or null whose target does not resolve against the manifest paths and source aliases. The checker re-resolves it; the link is reported as an error only when that resolution also fails.
 - With `--scan-text-links`, a `[[wikilink]]` inside claim text that does not resolve.
 
 **Failure mode:** A note is renamed or deleted. The claim that referenced it still reads as if the reference works. In an Obsidian vault this is the most common rot: the text says "see [[C-001]]" and `C-001` now belongs to a different file.
@@ -134,6 +141,8 @@ Three details are worth knowing:
 
 Ids are compared within a collection, not across collections. A claim id and an entity id may collide without a finding.
 
+The location of a duplicate finding names the file the collection lives in, so it is a pointer the reader can follow: `claims.jsonl`, `evidence.jsonl`, `entities.json`, `relations.json`, `contradictions.json`, or `manifest.json` for a duplicated source id.
+
 **Failure mode:** Two `clm-003` records are appended by a merge. Any consumer that builds a dictionary keyed by id keeps the last one, so one claim disappears without an error. The pack still reports nine claims in `stats` while the consumer can only retrieve eight.
 
 **Fix:** Make ids unique. If two compilers wrote the same id, renumber one side and update every reference to it: evidence `claim_id`, claim `evidence`, relation `claim_id` and `evidence`, contradiction `claims`, and freshness keys.
@@ -142,7 +151,7 @@ Ids are compared within a collection, not across collections. A claim id and an 
 
 **Default severity:** error
 
-**Detects:** Two or more source entries in `manifest.json` that claim the same number within one namespace. A number is taken from a source's extra `id`, `number` or `编号` field when it matches `PREFIX-123`, or from a filename that starts with that shape followed by an underscore.
+**Detects:** Two or more source entries in `manifest.json` that claim the same number within one namespace. A number is taken from a source's `number` or `编号` field when it matches `PREFIX-123`, or from a filename that starts with that shape followed by an underscore. The source's own `id` is not a number: it identifies the source record, not a document in a series.
 
 A source may carry a `namespace` field, and numbers are then compared within a namespace; a source without one belongs to the default namespace. The Obsidian adapter reads `namespace` or `编号空间` from frontmatter.
 
@@ -150,7 +159,7 @@ A source may carry a `namespace` field, and numbers are then compared within a n
 
 **Fix:** Renumber one file and update its references. If the number is meaningful, keep a single owner per number and choose a different prefix for the other series. If two directories really are separate numbering spaces, give the sources a `namespace` and declare it instead of renumbering.
 
-The underscore matters. A number is inferred from a filename only when the number is followed by an underscore, so `C-001_Title.md` carries `C-001` but `acme-1077-transmission-pricing.md` is a document id, not card number 1077, and will not collide with its siblings. A file named exactly `C-001.md` carries no number from its filename at all; give the source an `id` or `number` field if it should.
+The underscore matters. A number is inferred from a filename only when the number is followed by an underscore, so `C-001_Title.md` carries `C-001` but `acme-1077-transmission-pricing.md` is a document id, not card number 1077, and will not collide with its siblings. A file named exactly `C-001.md` carries no number from its filename at all; give the source a `number` field if it should.
 
 ## status.inconsistent
 
@@ -162,6 +171,7 @@ The underscore matters. A number is inferred from a filename only when the numbe
 - A claim with no text.
 - A claim that lists an evidence record whose `claim_id` points at a different claim.
 - A claim that references an entity id not present in `entities.json`.
+- A relation that names no `type`, or names one that is empty or whitespace. The reader does not fill in a default: without a type the edge says nothing about how the two entities relate.
 - A relation whose `from` or `to` entity does not exist.
 - A relation whose `claim_id` does not exist.
 - A relation whose `evidence` list names an evidence id that does not exist.
@@ -173,7 +183,7 @@ The underscore matters. A number is inferred from a filename only when the numbe
 
 **Failure mode:** A relation points at `ent-404` after an entity merge. Or a claim says `disputed` but the pack contains no record of what disputes it, so the reader cannot evaluate the dispute. Or a model infers a conclusion and writes no reasoning, and the next reader cannot tell inference from invention.
 
-**Fix:** Correct the status, add the missing `notes`, add the contradiction entry, or fix the reference. When a claim cites evidence, make sure the evidence's `claim_id` points back at that same claim.
+**Fix:** Correct the status, add the missing `notes`, add the contradiction entry, or fix the reference. When a claim cites evidence, make sure the evidence's `claim_id` points back at that same claim. Every relation needs a non-empty `type`; write `related_to` yourself if that is genuinely all you mean.
 
 ## contradiction.unresolved
 
@@ -203,6 +213,8 @@ The underscore matters. A number is inferred from a filename only when the numbe
 - A claim with no `reviewed_at` whose source date is older than the applicable TTL. The source date is `freshness.json` `source_date`, falling back to the claim's `updated_at`, then `created_at`. The TTL is the first matching entry in `policy.per_topic` for the claim's topics, falling back to `policy.default_ttl_days`. If neither is set, the age check is skipped.
 
 Both findings can fire for the same claim.
+
+Policy values are validated by the loader, not by this check. A `default_ttl_days` or `per_topic` value that is not a number, or that is negative, is a `pack.structure` error and is not applied: the claim is not additionally reported as stale under a policy that says `-5` days. Because the loader raises it, the finding survives `--rule` narrowing even when the freshness check itself is not selected.
 
 **Failure mode:** A claim about pricing, a vendor's product status or a policy is compiled once and never reviewed. Two years later an agent quotes it as current. The pack has no marker that the claim is old, because nobody recorded a review window.
 
@@ -244,7 +256,7 @@ Both findings can fire for the same claim.
 
 **Default severity:** error
 
-**Detects:** A credential-shaped string in claim text, claim notes, evidence quotes, entity names, relation notes, contradiction descriptions or `README.md`. Patterns cover GitHub tokens (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`), Anthropic keys, OpenAI-style `sk-` keys, AWS access key ids, Google API keys, Slack tokens, private key blocks, JWT-shaped strings, and assignments such as `api_key = ...`, `password: ...` or `access_token=...`.
+**Detects:** A credential-shaped string anywhere a human would read in the pack: claim text, claim notes, claim link targets, evidence quotes, entity names and entity `properties` values (including strings inside a list), relation notes, contradiction descriptions, source titles, source paths and source URLs, the manifest's `title`, `description` and `generator` values, and the pack `README.md`. Patterns cover GitHub tokens (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`), Anthropic keys, OpenAI-style `sk-` keys, AWS access key ids, Google API keys, Slack tokens, private key blocks, JWT-shaped strings, and assignments such as `api_key = ...`, `password: ...` or `access_token=...`.
 
 **Failure mode:** A claim quotes a configuration file, or a README explains how to call an API and includes a real token. The pack is committed, shared with a vendor, or pasted into a support ticket. The token travels with it.
 
@@ -254,7 +266,7 @@ Both findings can fire for the same claim.
 
 **Default severity:** warning
 
-**Detects:** An email address, a labelled phone number, a mainland China mobile number or an 18-character national id number in the same fields that `hygiene.secret` scans. `--no-pii` disables this rule; `hygiene.secret` still runs.
+**Detects:** An email address, a labelled phone number, a mainland China mobile number or an 18-character national id number in the narrower list this rule scans: claim text and notes, evidence quotes, entity names, relation notes, contradiction descriptions and the pack `README.md`. It deliberately does not scan claim link targets, entity `properties`, source titles, paths or URLs, the manifest, or `generator` values: contact details are sometimes the point of a record, so this scan stays on the fields where they are least likely to belong. `--no-pii` disables this rule; `hygiene.secret` still runs and still covers the whole list.
 
 **Failure mode:** Evidence quotes an email from a source document, or a README lists a personal contact for support. The pack is shared between tools and people, and the contact detail travels further than intended.
 
@@ -266,21 +278,28 @@ Both findings can fire for the same claim.
 
 **Detects:** An agent's reported action that the filesystem contradicts. Input is a JSONL file of action records, one object per line. Blank lines and lines starting with `#` are skipped.
 
+Every other line must be a JSON object. A line that is valid JSON but not an object is an error, not a line to skip: `ctxv verify-actions` and `ctxv check --actions` both exit `2`. A report that the verifier silently ignored would be a report nobody checked, and the exit code would say everything is fine.
+
 | Field | Meaning |
 |---|---|
 | `id` | Action id. Defaults to `line-<n>` when absent |
 | `action` | One of `archived`, `moved`, `deleted`, `wrote`, `exists` |
 | `path` | A single path relative to the root |
-| `paths` | A list of paths, used when the action covers several files |
-| `from` | For `moved`, the old path |
+| `paths` | A list of paths, used when the action covers several files. A value that is not a list is an error |
+| `from` | For `moved`, the old path. Required: a move has two ends, and without the old one there is nothing to check |
 | `sha256` | For `wrote` or any existing file, the expected content hash |
-| `count` | Expected number of files. Must equal the length of `paths` |
+| `count` | Expected number of files. Read as an integer, and must equal the length of `paths`; a value that cannot be read as an integer is an error |
+
+`path`, `paths` and `from` are relative to the root and may not escape it. An absolute path, a `~` path, or a path that resolves outside the root is reported as "names a path outside the root", and the verifier does not stat it. The root is a boundary, not a convenience: without it, an agent could use the verifier to confirm the existence of — and disclose the hash of — any file the user can read. Both `ctxv verify-actions --root <dir>` and `ctxv check --actions <file> --actions-root <dir>` enforce it.
 
 Findings:
 
 - Unknown action name.
 - No path supplied.
-- `count` does not equal the number of paths.
+- `paths` is present but is not a list.
+- A path or `from` names a location outside the root.
+- `count` cannot be read as an integer, or does not equal the number of paths.
+- A `moved` record names no `from` path.
 - `archived`, `exists` or `wrote`: the path does not exist.
 - `deleted`: the path still exists.
 - `moved`: the new path does not exist, or the old path still exists.
@@ -290,12 +309,33 @@ Findings:
 
 **Fix:** Run the action again, or correct the report. Do not report work the filesystem cannot confirm. The verifier checks filesystem state, not intent and not authorship: it can tell you the file is there, not who put it there.
 
+## ctxverify.internal
+
+**Default severity:** error
+
+**Detects:** A check raised an exception. The finding names the check and the exception, and says so in its hint. This is a bug in `ctxverify`, not a defect in the pack: the two are never reported under the same id, because the fix is different and the reader should not go looking for a problem that is not in their files.
+
+The other checks still run, so the report is incomplete rather than empty. The run does not read as clean: an internal error is an error, so the exit code is `1`. It is not filtered away by `--rule` narrowing and it cannot be filtered away by `--min-severity`, which only ever lists findings at or above a severity and this one is an error.
+
+**Failure mode:** A pack contains a field shape that one check did not anticipate, and the check indexes it without guarding. Without this rule the exception either takes down the whole run or is swallowed, and the report describes a run that did not happen.
+
+**Fix:** Change nothing in the pack on account of this finding. Report the bug, with the pack and the exception message; the message names the check that failed. If the same pack reports `pack.structure` or another rule alongside it, fix those separately.
+
 ## Rule selection pitfalls
+
+`--rule` and `--exclude-rule` validate their arguments. An unknown rule id or check group prints `ctxverify: unknown rule or check group: <name>` followed by the list of known groups, and exits `2`:
+
+```text
+ctxverify: unknown rule or check group: provanance
+  known groups: actions, consistency, duplicates, freshness, hygiene, identity, links, orphans, provenance
+```
+
+This is deliberate. A misspelt rule used to select nothing, which turned a failing pack into a PASS — the worst possible failure mode for a gate. `ctxverify.internal` and every rule id in the tables above are valid values; `pack.structure` is a valid rule id even though `pack` is not a group.
 
 - `--rule provenance` runs the `provenance` check group and can emit `provenance.missing`, `provenance.dangling` and `provenance.quote`.
 - `--rule provenance.missing` runs the same group but reports only `provenance.missing`; the other two provenance rules are filtered out of the report.
-- `--rule actions` and `--rule action.unverified` are equivalent. Without `--actions <file>`, the group returns no findings because no action records were supplied. `--rule action` runs no check, because that is neither a group name nor a rule id; only loader findings remain.
+- `--rule actions` and `--rule action.unverified` are equivalent. Without `--actions <file>`, the group returns no findings because no action records were supplied. `--rule action` is a usage error, because `action` is neither a group name nor a rule id.
 - `--exclude-rule hygiene` skips both `hygiene.secret` and `hygiene.pii`.
 - `--exclude-rule hygiene.secret` skips only `hygiene.secret`.
 - `--exclude-rule provenance.missing` skips only `provenance.missing`; the rest of the provenance group still runs.
-- Loader findings (`pack.structure`) are always included when `--rule` narrows the selection; `--exclude-rule pack.structure` is the one way to drop them.
+- Loader findings (`pack.structure`) and `ctxverify.internal` are always included when `--rule` narrows the selection; `--exclude-rule pack.structure` and `--exclude-rule ctxverify.internal` are the only way to drop them.

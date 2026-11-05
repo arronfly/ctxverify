@@ -128,6 +128,8 @@ def verify_actions(records: Iterable[dict[str, Any]], root: str | Path) -> list[
         declared_count = record.get("count")
         if declared_count is not None:
             try:
+                if isinstance(declared_count, float) and not declared_count.is_integer():
+                    raise ValueError("a fractional count is not a count")
                 declared = int(declared_count)
             except (TypeError, ValueError):
                 findings.append(

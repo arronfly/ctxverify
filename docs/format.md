@@ -21,7 +21,7 @@ A pack is a directory with exactly these files present. `ctxverify` reports `pac
 
 JSONL means one JSON object per line. Blank lines and lines whose first non-whitespace character is `#` are skipped by the loader. The writer emits one compact object per line and never emits comments.
 
-The format version implemented by this build is `0.1`. Compatibility is decided by the major version: a pack that declares the same major with a newer minor, such as `0.2`, is read and produces an `info` finding saying the pack declares a newer minor; a different major, such as `1.0`, fails `pack.structure` with an "unsupported format_version" message.
+The format version implemented by this build is `0.1`. It must be written as `MAJOR.MINOR`: `0` and `0.1.5` are `pack.structure` errors, because neither can be compared against a supported version. Compatibility is decided by the major version: a pack that declares the same major with a newer minor, such as `0.2`, is read and produces an `info` finding saying the pack declares a newer minor; a different major, such as `1.0`, fails `pack.structure` with an "unsupported format_version" message.
 
 A pack may contain additional files. This build ignores files it does not recognise, with one exception: `verification.json`, holding the output of a previous check, which the loader reads. See the `manifest.json` section below.
 
@@ -55,7 +55,7 @@ Unknown keys on claims, evidence, sources, entities, relations, contradictions a
 
 | Field | Required | Meaning |
 |---|---|---|
-| `format_version` | Required by the spec | Defaults to `0.1` when absent. The major version must match this build's `0.1`; a newer minor is read with an `info` finding |
+| `format_version` | Required by the spec | Defaults to `0.1` when absent. Must be `MAJOR.MINOR`; the major version must match this build's `0.1`, and a newer minor is read with an `info` finding |
 | `pack_id` | Required by the spec | Stable identifier for the pack, lowercase with no spaces |
 | `title`, `description` | Optional | Human-facing text |
 | `generated_at` | Optional | ISO 8601 timestamp |
@@ -64,14 +64,17 @@ Unknown keys on claims, evidence, sources, entities, relations, contradictions a
 | `stats` | Optional | Inventory counts. Written by the writer. `ctxverify` recomputes counts for its report instead of trusting this field |
 | `verification` | Optional | Result of a previous check, conventionally `{"tool", "tool_version", "status", "checked_at"}`. Carried through; no check reads it. A pack's `verification.json` is merged into this object on load, with the manifest's own keys winning |
 
-Each source has an `id`, a `path`, and optional `title`, `kind`, `sha256`, `url` and `modified_at`. `kind` defaults to `"file"`. The `path` is what claim links resolve against, so it should match the path you would write in a wikilink. The checker never opens the source file, so a source path can be recorded even when the file is not present in the pack.
+`pack_id` and `sources` are required; omitting either is a `pack.structure` error. A field of the wrong type is reported the same way rather than crashing the reader: `generator`, `stats` and `verification` must be objects, and `sources` must be an array of objects. The reader coerces the bad value so the rest of the pack is still checked, and the finding names the field and the type it got.
 
-A source may carry two extra fields that affect checking:
+Each source has an `id`, a `path`, and optional `title`, `kind`, `sha256`, `url` and `modified_at`. `kind` defaults to `"file"`. The `path` is what claim links resolve against, so it should match the path you would write in a wikilink. It must be a non-empty string relative to the pack root: an absolute path, a `~` path or one that climbs out through `..` is a `pack.structure` error. The checker never opens the source file, so a source path can be recorded even when the file is not present in the pack.
+
+A source may carry these extra fields that affect checking:
 
 | Field | Meaning |
 |---|---|
 | `aliases` | An array of alternative names. A claim link to one of them resolves to this source, the way Obsidian resolves a note's frontmatter aliases |
 | `namespace` | A numbering space for `ids.collision`. Numbers are compared within a namespace; sources without one share the default namespace |
+| `number`, `编号` | The source's own number, used by `ids.collision` when it matches `PREFIX-123`. The two field names are read the same way |
 
 `verification.json` is an optional file. When present, the loader reads it into the manifest's `verification` object, adding to what the manifest already has (the manifest's own keys take precedence). It is informational and never changes the verdict.
 
@@ -136,9 +139,9 @@ Relations:
 }
 ```
 
-The reader also accepts `from_id` and `to_id` as aliases for `from` and `to`. The writer emits `from` and `to`. Set `type` explicitly; the reader falls back to `related_to` when it is absent.
+The reader also accepts `from_id` and `to_id` as aliases for `from` and `to`. The writer emits `from` and `to`. `type` is required: the reader does not fill in a default, and a relation with no `type` is a `status.inconsistent` error. Write `related_to` yourself if that is genuinely all the edge means.
 
-For `entities.json`, `relations.json` and `contradictions.json`, the reader requires an object with the collection key. A bare array, an empty object or a wrong key produces a `pack.structure` error naming the file and the expected key, and the collection is read as empty. `freshness.json` must likewise be an object; anything else is a `pack.structure` error rather than an empty policy.
+For `entities.json`, `relations.json` and `contradictions.json`, the reader requires an object with the collection key. A bare array, an empty object or a wrong key produces a `pack.structure` error naming the file and the expected key, and the collection is read as empty. `freshness.json` must likewise be an object, and its `policy` must be an object; a non-object `policy` is reported rather than being read as an empty policy. A `claims` value that is not an object is a `pack.structure` error when it holds anything.
 
 Contradictions:
 
@@ -180,6 +183,8 @@ The spec requires `status` to be `open` or `resolved`; the reader defaults it to
 ```
 
 `policy.default_ttl_days` applies when no topic override matches. `policy.per_topic` maps a topic string to a TTL in days. For each claim, the first topic in the claim's `topics` list that has an override wins; otherwise the default applies. A claim with no matching policy and no default is not age-checked.
+
+A `default_ttl_days` or `per_topic` value that is not a number, or that is negative, is a `pack.structure` error and is not applied: the loader reports it, and the freshness check ignores that TTL rather than making every claim stale under it.
 
 Per-claim fields:
 
@@ -274,7 +279,7 @@ Identifiers are strings. Prefixes are conventional, not enforced:
 
 Ids must be unique within their collection and non-empty. They do not have to be unique across collections.
 
-Numbered files are a separate convention. If a source's filename starts with `PREFIX-123` followed by an underscore, or if the source carries an `id`, `number` or `编号` field of that shape, `ids.collision` treats that number as owned by the file. The underscore requirement is deliberate: `acme-1077-transmission-pricing.md` is a document id, not card number 1077. It also means a file named exactly `C-001.md` carries no number from its filename; give it an `id` or `number` field if it should.
+Numbered files are a separate convention. If a source's filename starts with `PREFIX-123` followed by an underscore, or if the source carries a `number` or `编号` field of that shape, `ids.collision` treats that number as owned by the file. The source's own `id` is not a number: it identifies the record, not a document in a series. The underscore requirement is deliberate: `acme-1077-transmission-pricing.md` is a document id, not card number 1077. It also means a file named exactly `C-001.md` carries no number from its filename; give it a `number` field if it should.
 
 One number must map to one file within a namespace. A source without a `namespace` belongs to the default namespace, where any two files carrying the same number still collide. Declaring a `namespace` on each source is how you say that two directories are two deliberate numbering spaces. If you renumber, update every reference.
 
@@ -339,25 +344,26 @@ A practical adapter sequence:
 6. **Emit freshness.** Choose a default TTL that fits the domain. Add `per_topic` overrides for fast-moving topics. Record `reviewed_at` when a human reviews.
 7. **Write and check.** `write_pack(pack, out)` then `ctxv check out`. Fix what it reports before shipping.
 
-Three reference adapters ship with the project:
+Three reference adapters ship with the project, exposed as `ctxv export obsidian`, `ctxv export llmwiki` and `ctxv export markdown`:
 
 - `src/ctxverify/adapters/obsidian.py` maps one note to one claim, with the note summary or first paragraph as the quote. It preserves the link structure.
 - `src/ctxverify/adapters/llmwiki.py` reads citation markers of the form `^[source.md:42-58]` and turns each cited paragraph into evidence. It records every citation and adds a source entry for the cited filename. It does not drop a citation whose source file is absent from the project; no check stats source files, so such a citation survives as a recorded reference.
-- `src/ctxverify/adapters/generic.py` reads any directory of markdown files, with or without frontmatter, and is the lowest-common-denominator adapter to start from when writing one for your own corpus.
+- `src/ctxverify/adapters/generic.py` is the `markdown` adapter: `ctxv export markdown <dir> --out <pack>` builds a pack from any directory of markdown files, with or without frontmatter. It reads the first heading and first paragraph when there is no frontmatter, and it is the lowest-common-denominator adapter to start from when writing one for your own corpus.
 
 ## Conformance checklist
 
 - Eight files present, all parse.
-- `manifest.format_version` is `0.1`.
-- Every source has a unique `id` and a `path`.
+- `manifest.format_version` is `MAJOR.MINOR`, and the major is `0.1`.
+- Every source has a unique `id` and a `path` relative to the pack root.
 - Every claim has a unique id, non-empty text, and a known status.
 - Every `verified` claim lists at least one existing evidence record.
 - Every evidence record has a non-empty quote, an existing `claim_id` and an existing `source_id`, and its `claim_id` points back at the claim that lists it.
 - Every claim link resolves to a manifest path.
+- Every relation names a non-empty `type`, and both endpoints exist.
 - Every entity id referenced by a claim or relation exists.
 - Every contradiction names at least two existing claims; resolved contradictions carry resolution text.
-- Freshness policy exists when claims have source dates; review dates are current.
-- No credentials anywhere in the pack: claim text and notes, evidence quotes, entity names and properties, relation notes, contradiction descriptions, source titles and paths, the manifest, or the README.
+- Freshness policy exists when claims have source dates; every TTL is a non-negative number; review dates are current.
+- No credentials anywhere in the pack: claim text and notes, claim link targets, evidence quotes, entity names and `properties` values, relation notes, contradiction descriptions, source titles, paths and URLs, the manifest's `title`, `description` and `generator` values, or the README.
 - No personal contact details in claim text and notes, evidence quotes, entity names, relation notes, contradiction descriptions or the README.
 
 Run `ctxv check <pack>` to confirm the machine-checkable parts. The rest is editorial judgment.

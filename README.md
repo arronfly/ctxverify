@@ -195,8 +195,8 @@ ctxverify 0.1.0 — examples/clean-pack
 |---|---|
 | `--format text\|json\|sarif` | Output format. Default: `text` |
 | `--strict` | Exit 1 on warnings and information findings as well as errors |
-| `--rule <check>` | Run only this check group, or only the one rule whose full id you pass. Repeatable. Group names are the check names printed by `ctxv rules`: `actions`, `consistency`, `duplicates`, `freshness`, `hygiene`, `identity`, `links`, `orphans`, `provenance`. Usually the part of a rule id before the dot; the exception is `action.unverified`, whose group is `actions`. `--rule provenance` runs the whole group; `--rule provenance.missing` runs the group and reports only `provenance.missing` findings. When `--rule` narrows the selection, loader findings (`pack.structure`) still appear |
-| `--exclude-rule <check>` | Skip this check group, or only the named rule. Same naming rule as `--rule`: `--exclude-rule hygiene` skips both hygiene rules, `--exclude-rule hygiene.secret` skips only that one |
+| `--rule <check>` | Run only this check group, or only the one rule whose full id you pass. Repeatable. Group names are the check names printed by `ctxv rules`: `actions`, `consistency`, `duplicates`, `freshness`, `hygiene`, `identity`, `links`, `orphans`, `provenance`. Usually the part of a rule id before the dot; the exception is `action.unverified`, whose group is `actions`. `--rule provenance` runs the whole group; `--rule provenance.missing` runs the group and reports only `provenance.missing` findings. An unknown rule id or group is a usage error: the tool prints `ctxverify: unknown rule or check group: <name>`, lists the known groups and exits `2`, rather than selecting nothing. When `--rule` narrows the selection, loader findings (`pack.structure`) and `ctxverify.internal` still appear |
+| `--exclude-rule <check>` | Skip this check group, or only the named rule. Same naming rule as `--rule`: `--exclude-rule hygiene` skips both hygiene rules, `--exclude-rule hygiene.secret` skips only that one. An unknown value is a usage error, as with `--rule` |
 | `--min-severity error\|warning\|info` | Display filter: list only findings at or above this severity. The header counts and the verdict still describe the whole pack, and the exit code still reflects every finding, so the filter never hides a failure |
 | `--no-pii` | Skip `hygiene.pii`. `hygiene.secret` still runs |
 | `--scan-text-links` | Also resolve `[[wikilinks]]` found inside claim text |
@@ -211,7 +211,7 @@ Exit codes:
 |---|---|
 | `0` | Clean. No errors. Warnings and information findings are allowed unless `--strict` is set |
 | `1` | Findings that block: at least one error, or any finding under `--strict` |
-| `2` | The pack could not be opened at all: missing directory, not a directory. `ctxv check --actions <file>` and `ctxv verify-actions <file>` both return `2` when the actions file is missing or unreadable. An invalid command line also exits `2` through argparse |
+| `2` | The pack could not be opened at all: missing directory, not a directory. `ctxv check --actions <file>` and `ctxv verify-actions <file>` both return `2` when the actions file is missing, unreadable, or holds a line that is valid JSON but not an object. An invalid command line also exits `2` through argparse, and so does an unknown `--rule` or `--exclude-rule` value |
 
 A pack that exists but is missing required files is exit `1`, not `2`. The tool can open the directory, so it reports `pack.structure` instead.
 
@@ -222,14 +222,14 @@ own bugs.
 
 | Rule id | Default severity | What it catches |
 |---|---|---|
-| `pack.structure` | error / info | A required file is missing; a `.json` file is empty or unparseable; `entities.json`, `relations.json` or `contradictions.json` is not an object with its collection array, or `freshness.json` is not an object; the format version has a different major (error). A newer minor of the same major is read and reported as info |
+| `pack.structure` | error / info | A required file is missing; a `.json` file is empty or unparseable; `pack_id` or `sources` is missing from the manifest, or a manifest field has the wrong type; `entities.json`, `relations.json` or `contradictions.json` is not an object with its collection array, or `freshness.json` is not an object; a freshness TTL is not a non-negative number; a source path escapes the pack; the format version is not `MAJOR.MINOR` or has a different major (error). A newer minor of the same major is read and reported as info |
 | `provenance.missing` | error / warning | A `verified` claim has no evidence (error); an `asserted` claim has no evidence (warning) |
 | `provenance.dangling` | error | Evidence points at a claim or source that does not exist, or a claim points at missing evidence |
 | `provenance.quote` | error | An evidence quote is empty, or its recorded sha256 does not match the quote text |
 | `links.broken` | error | A claim link resolves to no file in the manifest. Source aliases resolve; entity names do not, and are reported with a hint to use the claim's `entities` field |
 | `ids.duplicate` | error | An id is repeated within a collection, or an id is empty |
 | `ids.collision` | error | Two source files claim the same number, such as `C-001`, within one namespace |
-| `status.inconsistent` | error / warning | Status obligations and references do not line up. Structural problems are errors; a missing rationale or contradiction entry is a warning |
+| `status.inconsistent` | error / warning | Status obligations and references do not line up, including a relation that names no `type`. Structural problems are errors; a missing rationale or contradiction entry is a warning |
 | `contradiction.unresolved` | warning / error | A contradiction is open, resolved without text, or names fewer than two claims (warning); it names an unknown claim (error) |
 | `freshness.stale` | warning | A review window expired, or a claim has gone unreviewed past the policy TTL |
 | `duplicate.claim` | warning | Two claims have the same normalised text |
@@ -267,7 +267,7 @@ jobs:
           strict: true
 ```
 
-The action installs `ctxverify` from PyPI, runs `ctxv check`, and fails the job on exit code `1` or `2`. `min-severity` defaults to `info`, so every finding is printed unless you ask for less. Severity filtering is a display filter: it changes what the log shows, never what the job gates on, so `strict: true` now genuinely fails the job on a pack that has warnings or information findings.
+The action pins the version: it installs `ctxverify==0.1.0` from PyPI, runs `ctxv check`, and fails the job on exit code `1` or `2`. A tag never silently runs a later release. `min-severity` defaults to `info`, so every finding is printed unless you ask for less. Severity filtering is a display filter: it changes what the log shows, never what the job gates on, so `strict: true` now genuinely fails the job on a pack that has warnings or information findings.
 
 For SARIF upload to code scanning, run the CLI directly:
 
@@ -296,7 +296,7 @@ jobs:
         run: ctxv check ./pack
 ```
 
-The first run writes SARIF even when the check fails. The last step is the gate: it fails the job on exit code `1`, and also on `2` if the pack cannot be read.
+The first run writes SARIF even when the check fails. Artifact locations in the SARIF are repository-relative, so code scanning can attach a finding to a file: `claims.jsonl#clm-001` stays as it is, and an absolute path is rewritten relative to the working directory when that works and dropped to the pack directory when it does not. The last step is the gate: it fails the job on exit code `1`, and also on `2` if the pack cannot be read.
 
 Pre-commit:
 
@@ -341,7 +341,7 @@ If the pack lives in a private repository and you want SARIF in code scanning, u
 | `get_claim` | Return one claim with its evidence and source paths. Arguments: `path`, `claim_id` |
 | `verify_actions` | Check reported actions against the filesystem. Arguments: `actions`, `root` |
 
-`check_pack` behaves the same way as the CLI. It returns `verdict` (`pass` or `fail`), `status`, `strict`, `counts` (the shown findings), `reported` (how many were listed), `total_findings` (how many the run produced) and `total_counts` (the counts of every finding the run produced). `min_severity` filters the listing only: the verdict, `status` and `total_counts` always describe the run before the filter. `strict` is honoured, so a pack whose only findings are warnings returns `verdict: "fail"` and `status: "fail"` when you pass `strict: true`.
+`check_pack` behaves the same way as the CLI. It returns `verdict` (`pass` or `fail`), `status`, `strict`, `counts` (the shown findings), `reported` (how many were listed), `total_findings` (how many the run produced) and `total_counts` (the counts of every finding the run produced). `min_severity` filters the listing only: the verdict, `status` and `total_counts` always describe the run before the filter. `strict` is honoured, so a pack whose only findings are warnings returns `verdict: "fail"` and `status: "fail"` when you pass `strict: true`. `get_claim` returns `isError: true` for a claim id that is not in the pack, and `list_claims` with `limit: 0` returns no claims. An unreadable pack is the one difference from the CLI: the CLI exits `2` with no JSON, while the tool returns `isError: true` with the message in its content.
 
 Claude Code, project scope, `.mcp.json`:
 

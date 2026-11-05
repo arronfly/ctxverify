@@ -267,12 +267,14 @@ def load_pack(root: str | os.PathLike[str]) -> Pack:
                     )
                 )
 
-        claims_fresh = freshness_raw.get("claims") or {}
+        claims_fresh = freshness_raw.get("claims")
+        if claims_fresh is None:
+            claims_fresh = {}
         if isinstance(claims_fresh, dict):
             for claim_id, entry in claims_fresh.items():
                 if isinstance(entry, dict):
                     freshness[str(claim_id)] = FreshnessEntry.from_dict(str(claim_id), entry)
-        elif claims_fresh:
+        else:
             message = "freshness.json: claims must be an object"
             errors.append(message)
             findings.append(
