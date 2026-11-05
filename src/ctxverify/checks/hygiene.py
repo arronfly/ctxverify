@@ -42,6 +42,55 @@ PII_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 
 def _pack_texts(pack: Pack) -> Iterator[tuple[str, str]]:
+    """Every string in the pack that a human would read.
+
+    A credential does not only hide in a claim's text. It hides in a source's
+    title, in a free-form properties blob, in the link a claim carries. The
+    secret scan therefore walks the whole pack; the personal-detail scan
+    stays on the narrower list, because contact details are sometimes the
+    point of a record.
+    """
+    for claim in pack.claims:
+        yield f"claims.jsonl#{claim.id}", claim.text
+        if claim.notes:
+            yield f"claims.jsonl#{claim.id}", claim.notes
+        for link in claim.links:
+            target = link.get("target")
+            if isinstance(target, str):
+                yield f"claims.jsonl#{claim.id}", target
+    for ev in pack.evidence:
+        if ev.quote:
+            yield f"evidence.jsonl#{ev.id}", ev.quote
+    for entity in pack.entities:
+        yield f"entities.json#{entity.id}", entity.name
+        for value in entity.properties.values():
+            if isinstance(value, str):
+                yield f"entities.json#{entity.id}", value
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, str):
+                        yield f"entities.json#{entity.id}", item
+    for relation in pack.relations:
+        if relation.note:
+            yield f"relations.json#{relation.id}", relation.note
+    for contradiction in pack.contradictions:
+        yield f"contradictions.json#{contradiction.id}", contradiction.description
+    for source in pack.manifest.sources:
+        for value in (source.title, source.path, source.url):
+            if value:
+                yield f"manifest.json#{source.id}", str(value)
+    for value in (pack.manifest.title, pack.manifest.description):
+        if value:
+            yield "manifest.json", str(value)
+    for value in pack.manifest.generator.values():
+        if isinstance(value, str):
+            yield "manifest.json", value
+    if pack.readme:
+        yield "README.md", pack.readme
+
+
+def _narrow_texts(pack: Pack) -> Iterator[tuple[str, str]]:
+    """The strings where contact details are worth reporting."""
     for claim in pack.claims:
         yield f"claims.jsonl#{claim.id}", claim.text
         if claim.notes:
@@ -78,8 +127,11 @@ def check_hygiene(pack: Pack, ctx: CheckContext) -> list[Finding]:
                         hint="remove the value before sharing the pack; rotate it if it was real",
                     )
                 )
-        if not scan_pii:
-            continue
+
+    if not scan_pii:
+        return findings
+
+    for location, text in _narrow_texts(pack):
         for label, pattern in PII_PATTERNS:
             match = pattern.search(text)
             if match:

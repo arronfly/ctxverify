@@ -117,7 +117,7 @@ A **source** is an object:
 | `modified_at` | string | no | ISO 8601 timestamp. |
 | `aliases` | array of string | no | Other names the source is linked under. |
 | `namespace` | string | no | The numbering space this source's numbers belong to. See §4.1. |
-| `id` | string | no | The source's own number, when it has one. |
+| `number` | string | no | The source's own number, when it has one. |
 
 Source ids MUST be unique within the pack. A checker MUST report a duplicate
 source id as an error.
@@ -182,9 +182,14 @@ A link is an object:
 | `resolved` | string or null | The source path it resolves to, or `null` if unresolved. |
 
 Resolution follows Obsidian's rules, in this order: exact path, exact path
-plus `.md`, path suffix, basename, source alias. A checker MUST report a link
-whose `resolved` value is null, or whose `resolved` value is not a path listed
-in `manifest.sources`, as an error.
+plus `.md`, path suffix, basename, source alias. Case is not significant: a
+checker MUST compare a resolved path the way the resolver compares it.
+
+A link whose `resolved` value is not a path listed in `manifest.sources` MUST
+be reported as an error. A link whose `resolved` value is null is re-resolved
+by the checker, and is reported as an error only when that resolution also
+fails: a producer that leaves `resolved` unset has not yet recorded the
+answer, and the checker is the thing that supplies it.
 
 Entity names and aliases are a separate namespace. They resolve entity
 references, never links to files: a link whose target is an entity name is a
@@ -315,14 +320,20 @@ An action record is one JSON object per line:
 
 `action` MUST be one of `archived`, `moved`, `deleted`, `wrote`, `exists`.
 
+`path` and `paths` MUST be relative to the root directory, and MUST NOT name
+a location outside it. A record that names an absolute path, or one that
+escapes the root through `..`, is an error: the verifier's root is a
+boundary, and a record that points outside it is not a report about the
+workspace.
+
 Verification rules:
 
 | Action | The filesystem must show |
 |---|---|
 | `archived`, `exists`, `wrote` | the path exists |
 | `deleted` | the path does not exist |
-| `moved` | the new path exists **and** the `from` path does not |
-| any | `count`, when given, equals the number of listed paths |
+| `moved` | the new path exists, the `from` path is named, and the `from` path does not exist |
+| any | `count`, when given, is a number and equals the number of listed paths |
 | any | `sha256`, when given, equals the SHA-256 of the file's bytes |
 
 Any mismatch MUST be reported as an error. This is the check that catches the

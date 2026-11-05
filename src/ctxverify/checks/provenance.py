@@ -19,23 +19,33 @@ def check_provenance(pack: Pack, ctx: CheckContext) -> list[Finding]:
     evidence = pack.evidence_by_id()
     sources = pack.sources_by_id()
 
-    # Evidence must point at a claim and a source that exist.
+    # Evidence must point at a claim and a source that exist. An empty id
+    # names nothing, so it is as much a violation as an id that names the
+    # wrong thing.
     for ev in pack.evidence:
-        if ev.claim_id and ev.claim_id not in claims:
+        if ev.claim_id not in claims:
             findings.append(
                 Finding(
                     rule="provenance.dangling",
                     severity="error",
-                    message=f"evidence {ev.id} references unknown claim {ev.claim_id}",
+                    message=(
+                        f"evidence {ev.id} references unknown claim {ev.claim_id!r}"
+                        if ev.claim_id
+                        else f"evidence {ev.id} names no claim"
+                    ),
                     location=f"evidence.jsonl#{ev.id}",
                 )
             )
-        if ev.source_id and ev.source_id not in sources:
+        if ev.source_id not in sources:
             findings.append(
                 Finding(
                     rule="provenance.dangling",
                     severity="error",
-                    message=f"evidence {ev.id} references unknown source {ev.source_id}",
+                    message=(
+                        f"evidence {ev.id} references unknown source {ev.source_id!r}"
+                        if ev.source_id
+                        else f"evidence {ev.id} names no source"
+                    ),
                     location=f"evidence.jsonl#{ev.id}",
                 )
             )

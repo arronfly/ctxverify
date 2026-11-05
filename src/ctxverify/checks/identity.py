@@ -33,6 +33,17 @@ def check_identity(pack: Pack, ctx: CheckContext) -> list[Finding]:
         "sources": [s.id for s in pack.manifest.sources],
     }
 
+    # The file each collection lives in. A finding's location is a pointer
+    # the reader can follow, so it has to name a file that exists.
+    locations = {
+        "claims": "claims.jsonl",
+        "evidence": "evidence.jsonl",
+        "entities": "entities.json",
+        "relations": "relations.json",
+        "contradictions": "contradictions.json",
+        "sources": "manifest.json",
+    }
+
     for kind, ids in groups.items():
         by_id: dict[str, int] = defaultdict(int)
         for item_id in ids:
@@ -44,7 +55,7 @@ def check_identity(pack: Pack, ctx: CheckContext) -> list[Finding]:
                         rule="ids.duplicate",
                         severity="error",
                         message=f"{kind}: id {item_id!r} is used {count} times",
-                        location=f"{kind}.jsonl#{item_id}" if kind else None,
+                        location=f"{locations[kind]}#{item_id}",
                         hint="every consumer that keys on this id will keep only the last one",
                     )
                 )
@@ -56,7 +67,7 @@ def check_identity(pack: Pack, ctx: CheckContext) -> list[Finding]:
                     rule="ids.duplicate",
                     severity="error",
                     message=f"{kind}: {len(empty)} record(s) have an empty id",
-                    location=kind,
+                    location=locations[kind],
                 )
             )
 
@@ -86,7 +97,7 @@ def _number_collisions(pack: Pack) -> list[Finding]:
     owners: dict[tuple[str, str], set[str]] = defaultdict(set)
     for source in pack.manifest.sources:
         candidates: set[str] = set()
-        for key in ("id", "number", "编号"):
+        for key in ("number", "编号"):
             value = source.extra.get(key)
             if isinstance(value, str) and NUMBER_RE.match(value.strip()):
                 candidates.add(value.strip())

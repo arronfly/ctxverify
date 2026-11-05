@@ -68,6 +68,35 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def as_dict(value: Any) -> dict[str, Any]:
+    """Coerce a value to a dictionary. A wrong type becomes an empty dict.
+
+    A pack is written by other tools. A field that should be an object and
+    is a string is a defect in the pack, not a reason to crash the checker.
+    """
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def as_dict_list(value: Any) -> list[Any]:
+    """Coerce a value to a list. A wrong type becomes an empty list."""
+    return list(value) if isinstance(value, list) else []
+
+
+def as_str_list(value: Any) -> list[str]:
+    """Coerce a value to a list of strings.
+
+    A string where a list belongs is a pack defect; expanding it into its
+    characters would turn one mistake into a shower of confusing findings.
+    """
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return [str(value)]
+    return []
+
+
 @dataclass
 class Source:
     """A file, URL or document that claims were compiled from."""
@@ -86,7 +115,7 @@ class Source:
         known = {"id", "path", "title", "kind", "sha256", "url", "modified_at"}
         return cls(
             id=str(data.get("id", "")),
-            path=str(data.get("path", "")),
+            path=str(data.get("path", "") if isinstance(data.get("path"), str) else ""),
             title=data.get("title"),
             kind=str(data.get("kind", "file")),
             sha256=data.get("sha256"),
@@ -145,7 +174,7 @@ class Evidence:
             claim_id=str(data.get("claim_id", "")),
             source_id=str(data.get("source_id", "")),
             quote=str(data.get("quote", "") or ""),
-            locator=dict(data.get("locator") or {}),
+            locator=as_dict(data.get("locator")),
             quote_sha256=data.get("quote_sha256"),
             retrieved_at=data.get("retrieved_at"),
             extra={k: v for k, v in data.items() if k not in known},
@@ -214,9 +243,9 @@ class Claim:
             text=str(data.get("text", "") or ""),
             status=str(data.get("status", "asserted") or "asserted"),
             confidence=_maybe_float(data.get("confidence")),
-            evidence=[str(x) for x in (data.get("evidence") or [])],
-            entities=[str(x) for x in (data.get("entities") or [])],
-            topics=[str(x) for x in (data.get("topics") or [])],
+            evidence=as_str_list(data.get("evidence")),
+            entities=as_str_list(data.get("entities")),
+            topics=as_str_list(data.get("topics")),
             links=normalised_links,
             notes=data.get("notes"),
             created_at=data.get("created_at"),
@@ -266,8 +295,8 @@ class Entity:
             id=str(data.get("id", "")),
             name=str(data.get("name", "") or ""),
             type=data.get("type"),
-            aliases=[str(x) for x in (data.get("aliases") or [])],
-            properties=dict(data.get("properties") or {}),
+            aliases=as_str_list(data.get("aliases")),
+            properties=as_dict(data.get("properties")),
             extra={k: v for k, v in data.items() if k not in known},
         )
 
@@ -305,8 +334,8 @@ class Relation:
             id=str(data.get("id", "")),
             from_id=str(data.get("from", data.get("from_id", ""))),
             to_id=str(data.get("to", data.get("to_id", ""))),
-            type=str(data.get("type", "related_to") or "related_to"),
-            evidence=[str(x) for x in (data.get("evidence") or [])],
+            type=str(data.get("type", "") or ""),
+            evidence=as_str_list(data.get("evidence")),
             claim_id=data.get("claim_id"),
             note=data.get("note"),
             extra={k: v for k, v in data.items() if k not in known},
@@ -348,7 +377,7 @@ class Contradiction:
         known = {"id", "claims", "description", "status", "resolution", "detected_at"}
         return cls(
             id=str(data.get("id", "")),
-            claims=[str(x) for x in (data.get("claims") or [])],
+            claims=as_str_list(data.get("claims")),
             description=str(data.get("description", "") or ""),
             status=str(data.get("status", "open") or "open"),
             resolution=data.get("resolution"),
@@ -430,10 +459,10 @@ class Manifest:
             title=data.get("title"),
             description=data.get("description"),
             generated_at=data.get("generated_at"),
-            generator=dict(data.get("generator") or {}),
-            sources=[Source.from_dict(s) for s in (data.get("sources") or [])],
-            stats=dict(data.get("stats") or {}),
-            verification=dict(data.get("verification") or {}),
+            generator=as_dict(data.get("generator")),
+            sources=[Source.from_dict(s) for s in as_dict_list(data.get("sources")) if isinstance(s, dict)],
+            stats=as_dict(data.get("stats")),
+            verification=as_dict(data.get("verification")),
             extra={k: v for k, v in data.items() if k not in known},
         )
 

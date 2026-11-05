@@ -204,6 +204,18 @@ RULES: tuple[Rule, ...] = (
             "claimed? This is the one check no knowledge tool performs."
         ),
     ),
+    Rule(
+        id="ctxverify.internal",
+        severity=ERROR,
+        category="ctxverify",
+        title="A check crashed",
+        description=(
+            "A check raised an exception. This is a bug in ctxverify, not a "
+            "defect in the pack. It is reported under its own id so that the "
+            "two are never confused, and it is never filtered away: a tool "
+            "that crashed still has to say so."
+        ),
+    ),
 )
 
 RULES_BY_ID = {rule.id: rule for rule in RULES}

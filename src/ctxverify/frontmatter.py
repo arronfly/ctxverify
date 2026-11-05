@@ -63,6 +63,10 @@ def parse_frontmatter(text: str) -> dict[str, Any]:
         return {}
 
     data: dict[str, Any] = {}
+
+    # A single pass, because a second pass cannot tell which indented lines
+    # belong to which key: a nested map must end where the next top-level
+    # key begins, or its entries bleed into each other.
     pending_key: str | None = None
     pending_list: list[Any] | None = None
     pending_map: dict[str, Any] | None = None
@@ -78,20 +82,33 @@ def parse_frontmatter(text: str) -> dict[str, Any]:
             continue
 
         if line[:1] in (" ", "\t"):
-            # Nested content: a map entry or a list item under the pending key.
+            # Nested content under the pending key.
             if pending_map is not None:
-                key, _, value = stripped.partition(":")
-                pending_map[key.strip()] = _scalar(value)
+                sub_key, sep, sub_value = stripped.partition(":")
+                if sep:
+                    pending_map[sub_key.strip()] = _scalar(sub_value)
             continue
 
+        # A new top-level key ends whatever was pending.
         key, sep, value = stripped.partition(":")
         if not sep:
+            pending_key = None
+            pending_list = None
+            pending_map = None
             continue
         key = key.strip()
         value = value.strip()
 
+        if pending_key is not None:
+            if pending_map and pending_map:
+                data[pending_key] = pending_map
+            elif pending_list:
+                data[pending_key] = pending_list
+            else:
+                data[pending_key] = {}
+
         if value == "":
-            # Could be a block list or a nested map; decide on the next lines.
+            # Could be a block list or a nested map; decide as the lines come.
             pending_key = key
             pending_list = []
             pending_map = {}
@@ -103,31 +120,13 @@ def parse_frontmatter(text: str) -> dict[str, Any]:
         pending_list = None
         pending_map = None
 
-    # Promote a pending map to a nested dict when it actually has content.
-    for key in list(data.keys()):
-        value = data[key]
-        if isinstance(value, list) and not value:
-            candidate = _last_nested_map(raw, key)
-            if candidate is not None:
-                data[key] = candidate
+    if pending_key is not None:
+        if pending_map and pending_map:
+            data[pending_key] = pending_map
+        elif pending_list:
+            data[pending_key] = pending_list
+
     return data
-
-
-def _last_nested_map(raw: str, key: str) -> dict[str, Any] | None:
-    """Find a one-level nested map under ``key`` in the raw frontmatter."""
-    lines = raw.splitlines()
-    result: dict[str, Any] = {}
-    active = False
-    for line in lines:
-        if line[:1] in (" ", "\t"):
-            if active:
-                stripped = line.strip()
-                sub_key, sep, sub_value = stripped.partition(":")
-                if sep:
-                    result[sub_key.strip()] = _scalar(sub_value)
-        elif line.split(":", 1)[0].strip() == key:
-            active = True
-    return result or None
 
 
 def as_list(value: Any) -> list[str]:

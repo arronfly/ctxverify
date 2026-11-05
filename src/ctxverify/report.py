@@ -138,7 +138,13 @@ class Report:
         return "\n".join(lines)
 
     def to_sarif(self) -> str:
-        """SARIF 2.1.0 output, for GitHub code scanning."""
+        """SARIF 2.1.0 output, for GitHub code scanning.
+
+        Artifact locations are relative to the working directory, so that
+        code scanning can find the file. An absolute path outside the
+        repository is not a valid SARIF URI and is reported against the
+        pack directory instead.
+        """
         rules = []
         seen = set()
         for finding in self.findings:
@@ -159,8 +165,9 @@ class Report:
         results = []
         for finding in self.findings:
             region = {"startLine": 1}
-            if finding.location and ":" in finding.location:
-                tail = finding.location.rsplit(":", 1)[-1]
+            location = finding.location or ""
+            if ":" in location:
+                tail = location.rsplit(":", 1)[-1]
                 if tail.isdigit():
                     region["startLine"] = int(tail)
             results.append(
@@ -171,7 +178,9 @@ class Report:
                     "locations": [
                         {
                             "physicalLocation": {
-                                "artifactLocation": {"uri": finding.location or self.pack},
+                                "artifactLocation": {
+                                    "uri": _sarif_uri(location, self.pack)
+                                },
                                 "region": region,
                             }
                         }
@@ -200,6 +209,32 @@ class Report:
 
 def _sarif_level(severity: str) -> str:
     return {ERROR: "error", WARNING: "warning", INFO: "note"}.get(severity, "note")
+
+
+def _sarif_uri(location: str, pack_root: str) -> str:
+    """A repository-relative URI for a finding's location.
+
+    A location like ``claims.jsonl#clm-001`` is relative to the pack. A
+    location like ``/abs/path/claims.jsonl:12`` is absolute, and code
+    scanning cannot use it; it is rewritten relative to the working
+    directory when that works, and dropped to the pack directory when it
+    does not.
+    """
+    import os
+
+    text = location.split("#", 1)[0]
+    if not text:
+        return pack_root
+
+    if os.path.isabs(text):
+        try:
+            relative = os.path.relpath(text, os.getcwd())
+        except ValueError:
+            return pack_root
+        if relative.startswith(".."):
+            return pack_root
+        return relative
+    return text
 
 
 _COLORS = {ERROR: "\033[31m", WARNING: "\033[33m", INFO: "\033[36m"}

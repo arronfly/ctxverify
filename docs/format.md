@@ -339,10 +339,11 @@ A practical adapter sequence:
 6. **Emit freshness.** Choose a default TTL that fits the domain. Add `per_topic` overrides for fast-moving topics. Record `reviewed_at` when a human reviews.
 7. **Write and check.** `write_pack(pack, out)` then `ctxv check out`. Fix what it reports before shipping.
 
-Two reference adapters ship with the project:
+Three reference adapters ship with the project:
 
 - `src/ctxverify/adapters/obsidian.py` maps one note to one claim, with the note summary or first paragraph as the quote. It preserves the link structure.
 - `src/ctxverify/adapters/llmwiki.py` reads citation markers of the form `^[source.md:42-58]` and turns each cited paragraph into evidence. It records every citation and adds a source entry for the cited filename. It does not drop a citation whose source file is absent from the project; no check stats source files, so such a citation survives as a recorded reference.
+- `src/ctxverify/adapters/generic.py` reads any directory of markdown files, with or without frontmatter, and is the lowest-common-denominator adapter to start from when writing one for your own corpus.
 
 ## Conformance checklist
 
@@ -356,6 +357,7 @@ Two reference adapters ship with the project:
 - Every entity id referenced by a claim or relation exists.
 - Every contradiction names at least two existing claims; resolved contradictions carry resolution text.
 - Freshness policy exists when claims have source dates; review dates are current.
-- No credentials or personal contact details in claim text, notes, quotes, entity names, relation notes, contradiction descriptions or README.
+- No credentials anywhere in the pack: claim text and notes, evidence quotes, entity names and properties, relation notes, contradiction descriptions, source titles and paths, the manifest, or the README.
+- No personal contact details in claim text and notes, evidence quotes, entity names, relation notes, contradiction descriptions or the README.
 
 Run `ctxv check <pack>` to confirm the machine-checkable parts. The rest is editorial judgment.

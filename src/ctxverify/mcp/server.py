@@ -205,9 +205,12 @@ def call_tool(name: str, arguments: dict[str, Any], default_root: str | None) ->
         pack = load_pack(root)
         status = arguments.get("status")
         topic = arguments.get("topic")
-        limit = int(arguments.get("limit") or 100)
+        limit = arguments.get("limit")
+        limit = 100 if limit is None else max(0, int(limit))
         rows = []
         for claim in pack.claims:
+            if len(rows) >= limit:
+                break
             if status and claim.status != status:
                 continue
             if topic and topic not in claim.topics:
@@ -222,8 +225,6 @@ def call_tool(name: str, arguments: dict[str, Any], default_root: str | None) ->
                     "topics": claim.topics,
                 }
             )
-            if len(rows) >= limit:
-                break
         return {"claims": rows, "total": len(pack.claims)}
 
     if name == "get_claim":
@@ -231,7 +232,7 @@ def call_tool(name: str, arguments: dict[str, Any], default_root: str | None) ->
         claim_id = arguments.get("claim_id")
         claim = pack.claims_by_id().get(str(claim_id))
         if claim is None:
-            return {"error": f"claim not found: {claim_id}"}
+            raise KeyError(f"claim not found: {claim_id}")
         evidence = pack.evidence_by_id()
         sources = pack.sources_by_id()
         records = []

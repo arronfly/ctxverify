@@ -38,29 +38,10 @@ def check_freshness(pack: Pack, ctx: CheckContext) -> list[Finding]:
     per_topic = policy.get("per_topic") or {}
 
     # A policy whose TTL is nonsense is a broken policy, not a strict one.
-    for label, value in [("default_ttl_days", default_ttl)] + [
-        (f"per_topic.{topic}", ttl) for topic, ttl in (per_topic or {}).items()
-    ]:
-        if value is None:
-            continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            findings.append(
-                Finding(
-                    rule="pack.structure",
-                    severity="error",
-                    message=f"freshness policy {label} must be a number, got {value!r}",
-                    location="freshness.json",
-                )
-            )
-        elif value < 0:
-            findings.append(
-                Finding(
-                    rule="pack.structure",
-                    severity="error",
-                    message=f"freshness policy {label} must not be negative, got {value!r}",
-                    location="freshness.json",
-                )
-            )
+    # The loader reports it; the check does not apply it.
+    invalid_ttls = ctx.option("invalid_ttls") or set()
+    if "default_ttl_days" in invalid_ttls:
+        default_ttl = None
 
     for claim in pack.claims:
         entry = pack.freshness.get(claim.id)
@@ -84,11 +65,14 @@ def check_freshness(pack: Pack, ctx: CheckContext) -> list[Finding]:
         ttl = None
         for topic in claim.topics:
             if topic in per_topic:
-                ttl = per_topic[topic]
+                if f"per_topic.{topic}" not in invalid_ttls:
+                    ttl = per_topic[topic]
                 break
         if ttl is None:
             ttl = default_ttl
         if ttl is None:
+            continue
+        if isinstance(ttl, bool) or not isinstance(ttl, (int, float)):
             continue
 
         reviewed = _parse_dt(entry.reviewed_at) if entry else None

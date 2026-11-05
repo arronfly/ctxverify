@@ -30,7 +30,12 @@ ACTIONS = ("archived", "moved", "deleted", "wrote", "exists")
 
 
 def load_actions(path: str | Path) -> list[dict[str, Any]]:
-    """Read a JSONL file of action records."""
+    """Read a JSONL file of action records.
+
+    Every line must be a JSON object. A line that is not is an error, not
+    something to skip: a report the verifier silently ignored is a report
+    nobody checked, and the exit code would say everything is fine.
+    """
     records: list[dict[str, Any]] = []
     text = Path(path).read_text(encoding="utf-8")
     for number, line in enumerate(text.splitlines(), start=1):
@@ -41,10 +46,33 @@ def load_actions(path: str | Path) -> list[dict[str, Any]]:
             row = json.loads(stripped)
         except json.JSONDecodeError as exc:
             raise ValueError(f"{path}:{number} is not valid JSON: {exc}") from exc
-        if isinstance(row, dict):
-            row.setdefault("id", f"line-{number}")
-            records.append(row)
+        if not isinstance(row, dict):
+            raise ValueError(f"{path}:{number} is not a JSON object")
+        row.setdefault("id", f"line-{number}")
+        records.append(row)
     return records
+
+
+def _resolve_within(base: Path, raw: str) -> Path | None:
+    """Resolve a reported path inside ``base``, or return ``None``.
+
+    The root is a boundary. An action record that names a path outside it
+    is not a report about the workspace, and following it would let an
+    agent use the verifier to confirm the existence of — and disclose the
+    hash of — any file the user can read.
+    """
+    text = str(raw)
+    if not text:
+        return None
+    candidate = Path(text)
+    if candidate.is_absolute() or text.startswith("~"):
+        return None
+    resolved = (base / candidate).resolve()
+    try:
+        resolved.relative_to(base)
+    except ValueError:
+        return None
+    return resolved
 
 
 def verify_actions(records: Iterable[dict[str, Any]], root: str | Path) -> list[Finding]:
@@ -73,6 +101,19 @@ def verify_actions(records: Iterable[dict[str, Any]], root: str | Path) -> list[
         if paths is None:
             single = record.get("path")
             paths = [single] if single else []
+        elif not isinstance(paths, list):
+            findings.append(
+                Finding(
+                    rule="action.unverified",
+                    severity="error",
+                    message=(
+                        f"action {action_id} has a 'paths' value that is not a list "
+                        f"({type(paths).__name__})"
+                    ),
+                    location=location,
+                )
+            )
+            continue
         if not paths:
             findings.append(
                 Finding(
@@ -85,23 +126,63 @@ def verify_actions(records: Iterable[dict[str, Any]], root: str | Path) -> list[
             continue
 
         declared_count = record.get("count")
-        if declared_count is not None and int(declared_count) != len(paths):
+        if declared_count is not None:
+            try:
+                declared = int(declared_count)
+            except (TypeError, ValueError):
+                findings.append(
+                    Finding(
+                        rule="action.unverified",
+                        severity="error",
+                        message=(
+                            f"action {action_id} has a count that is not a number: "
+                            f"{declared_count!r}"
+                        ),
+                        location=location,
+                    )
+                )
+            else:
+                if declared != len(paths):
+                    findings.append(
+                        Finding(
+                            rule="action.unverified",
+                            severity="error",
+                            message=(
+                                f"action {action_id} claims {declared} file(s) "
+                                f"but lists {len(paths)}"
+                            ),
+                            location=location,
+                            hint="the count and the list must agree before anyone believes the report",
+                        )
+                    )
+
+        if action == "moved" and not str(record.get("from") or "").strip():
             findings.append(
                 Finding(
                     rule="action.unverified",
                     severity="error",
-                    message=(
-                        f"action {action_id} claims {declared_count} file(s) "
-                        f"but lists {len(paths)}"
-                    ),
+                    message=f"action {action_id} reports a move but names no 'from' path",
                     location=location,
-                    hint="the count and the list must agree before anyone believes the report",
+                    hint="a move has two ends; without the old one there is nothing to check",
                 )
             )
 
         for raw in paths:
-            target = base / str(raw)
             label = str(raw)
+            target = _resolve_within(base, label)
+            if target is None:
+                findings.append(
+                    Finding(
+                        rule="action.unverified",
+                        severity="error",
+                        message=(
+                            f"action {action_id} names a path outside the root: {label!r}"
+                        ),
+                        location=location,
+                        hint="action paths are relative to the root and may not escape it",
+                    )
+                )
+                continue
             if action in ("archived", "exists", "wrote"):
                 if not target.exists():
                     findings.append(
@@ -133,23 +214,37 @@ def verify_actions(records: Iterable[dict[str, Any]], root: str | Path) -> list[
                             location=location,
                         )
                     )
-                if origin and (base / str(origin)).exists():
-                    findings.append(
-                        Finding(
-                            rule="action.unverified",
-                            severity="error",
-                            message=(
-                                f"action {action_id} reports {label!r} as moved, "
-                                f"but {str(origin)!r} still exists"
-                            ),
-                            location=location,
+                if origin:
+                    origin_path = _resolve_within(base, str(origin))
+                    if origin_path is None:
+                        findings.append(
+                            Finding(
+                                rule="action.unverified",
+                                severity="error",
+                                message=(
+                                    f"action {action_id} names an origin path outside the root: "
+                                    f"{str(origin)!r}"
+                                ),
+                                location=location,
+                            )
                         )
-                    )
+                    elif origin_path.exists():
+                        findings.append(
+                            Finding(
+                                rule="action.unverified",
+                                severity="error",
+                                message=(
+                                    f"action {action_id} reports {label!r} as moved, "
+                                    f"but {str(origin)!r} still exists"
+                                ),
+                                location=location,
+                            )
+                        )
 
             expected_hash = record.get("sha256")
             if expected_hash and target.exists() and target.is_file():
                 actual = sha256_bytes(target.read_bytes())
-                if actual != expected_hash:
+                if str(expected_hash).strip().lower() != actual.lower():
                     findings.append(
                         Finding(
                             rule="action.unverified",

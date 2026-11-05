@@ -76,6 +76,7 @@ def run_checks(pack: Pack, options: dict[str, Any] | None = None) -> Report:
     index = build_index([s.path for s in pack.manifest.sources], file_aliases)
 
     ctx = CheckContext(now=now, options=options, index=index, entities=entity_alias_map)
+    ctx.options["invalid_ttls"] = set(getattr(pack, "invalid_ttls", set()) or set())
 
     findings: list[Finding] = list(getattr(pack, "load_findings", []) or [])
     enabled_groups, enabled_rule_ids = _resolve_selection(options.get("rules"))
@@ -89,22 +90,32 @@ def run_checks(pack: Pack, options: dict[str, Any] | None = None) -> Report:
         try:
             findings.extend(fn(pack, ctx))
         except Exception as exc:  # a broken check must not hide the rest
+            # This is a bug in ctxverify, not a defect in the pack. It gets
+            # its own rule id so that the two are never confused, and it is
+            # never filtered away: a tool that crashed still has to say so.
             findings.append(
                 Finding(
-                    rule="pack.structure",
+                    rule="ctxverify.internal",
                     severity=ERROR,
-                    message=f"internal error while running check {name}: {exc}",
+                    message=(
+                        f"internal error while running check {name}: "
+                        f"{type(exc).__name__}: {exc}"
+                    ),
                     location=pack.root,
+                    hint="this is a bug in ctxverify, not a problem with the pack; please report it",
                 )
             )
 
     # A selection may name a single rule id. Selecting `ids.duplicate` must
     # report `ids.duplicate` and not its neighbour `ids.collision`.
+    # Structural findings are never filtered away: a pack that cannot be
+    # judged cannot be judged "clean" by narrowing the run.
     if enabled_rule_ids:
         findings = [
             f
             for f in findings
-            if f.rule in enabled_rule_ids or f.rule == "pack.structure"
+            if f.rule in enabled_rule_ids
+            or f.rule in ("pack.structure", "ctxverify.internal")
         ]
     if disabled_rule_ids:
         findings = [f for f in findings if f.rule not in disabled_rule_ids]

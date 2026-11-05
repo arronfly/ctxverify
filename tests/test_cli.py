@@ -51,6 +51,8 @@ class CliTests(unittest.TestCase):
         )
         payload = json.loads(output)
         self.assertTrue(all(f["severity"] == "error" for f in payload["findings"]))
+        self.assertEqual(len(payload["findings"]), 13)
+        self.assertIn("provenance.missing", {f["rule"] for f in payload["findings"]})
 
     def test_quiet_prints_nothing(self) -> None:
         code, output = run_cli("check", str(EXAMPLES / "clean-pack"), "--quiet")

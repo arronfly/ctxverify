@@ -184,6 +184,7 @@ ctxverify 0.1.0 — examples/clean-pack
 | `ctxv init <dir>` | Scaffold a conforming pack. Flags: `--id`, `--title`, `--force` |
 | `ctxv export obsidian <vault> --out <pack>` | Build a pack from an Obsidian-style vault. Flags: `--id`, `--include`, `--exclude` |
 | `ctxv export llmwiki <project> --out <pack>` | Build a pack from an llmwiki project |
+| `ctxv export markdown <dir> --out <pack>` | Build a pack from a plain markdown directory. Flags: `--id`, `--include`, `--exclude` |
 | `ctxv verify-actions <actions.jsonl> --root <dir>` | Check an agent's reported actions against the filesystem. Flag: `--format text\|json` |
 | `ctxv rules` | List the rule catalogue |
 | `ctxv mcp` | Run the MCP server on stdio. Flag: `--root` |
@@ -216,7 +217,8 @@ A pack that exists but is missing required files is exit `1`, not `2`. The tool 
 
 ## Rule catalogue
 
-`ctxverify 0.1.0` ships 16 rules.
+`ctxverify 0.1.0` ships 16 rules about packs, plus one that reports ctxverify's
+own bugs.
 
 | Rule id | Default severity | What it catches |
 |---|---|---|
@@ -236,6 +238,7 @@ A pack that exists but is missing required files is exit `1`, not `2`. The tool 
 | `hygiene.secret` | error | A string in the pack looks like a credential |
 | `hygiene.pii` | warning | A string in the pack looks like an email address, phone number or national id |
 | `action.unverified` | error | An agent's reported action is contradicted by the filesystem |
+| `ctxverify.internal` | error | A check crashed. This is a bug in ctxverify, not a defect in the pack, and it is never filtered away by `--rule` or `--min-severity` |
 
 See [docs/rules.md](docs/rules.md) for each rule's detection logic, failure mode and fix.
 
@@ -378,7 +381,7 @@ See [docs/agents.md](docs/agents.md) for the full agent loop, including prompt t
 
 ## How it relates to llmwiki and other tools
 
-`ctxverify` is not the first linter in this space, and it does not claim to be. The nearest existing tool is [llmwiki](https://github.com/atomicstrata/llm-wiki-compiler) (MIT). It compiles sources into a markdown wiki and has both `llmwiki lint` and `llmwiki eval`. Its lint covers broken wikilinks, duplicate concepts, broken or malformed citation markers, empty or orphaned pages, stale pages, low confidence, contradicted pages, paragraphs without citations and schema cross-link violations. Its eval reports a health score, citation coverage and precision, judge-scored citation support, claim-level citation rate and graph health.
+`ctxverify` is not the first linter in this space, and it does not claim to be. The nearest existing tool is [llmwiki](https://github.com/atomicstrata/llm-wiki-compiler) (MIT). It compiles sources into a markdown wiki and has both `llmwiki lint` and `llmwiki eval`. Read from its own documentation on 2026-11-05, its lint covers broken wikilinks, duplicate concepts, broken or malformed citation markers, empty or orphaned pages, stale pages, low confidence, contradicted pages, paragraphs without citations and schema cross-link violations; its eval reports a health score, citation coverage and precision, judge-scored citation support, source utilization, claim-level citation rate and graph health. That is a real linter, and this is a comparison of scope, not a claim that the other project is missing the basics.
 
 That is a real linter, and it is more than a link checker. The difference is scope.
 

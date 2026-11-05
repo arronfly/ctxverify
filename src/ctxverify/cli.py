@@ -152,6 +152,25 @@ def main(argv: list[str] | None = None) -> int:
 
 def cmd_check(args: argparse.Namespace) -> int:
     from .checks import run_checks
+    from .rules import RULES_BY_ID
+
+    unknown = [
+        token
+        for token in list(args.rule) + list(args.exclude_rule)
+        if token not in RULES_BY_ID and token not in check_names()
+    ]
+    if unknown:
+        # A misspelt rule would otherwise select nothing and turn a failing
+        # pack into a PASS. That is the worst possible failure for a gate.
+        print(
+            f"ctxverify: unknown rule or check group: {', '.join(sorted(set(unknown)))}",
+            file=sys.stderr,
+        )
+        print(
+            "  known groups: " + ", ".join(check_names()),
+            file=sys.stderr,
+        )
+        return EXIT_UNUSABLE
 
     try:
         pack = load_pack(args.pack)
@@ -228,13 +247,20 @@ def cmd_init(args: argparse.Namespace) -> int:
     from .scaffold import scaffold_pack
 
     target = Path(args.directory)
+    if target.exists() and not target.is_dir():
+        print(f"ctxverify: {target} is not a directory", file=sys.stderr)
+        return EXIT_UNUSABLE
     if target.exists() and any(target.iterdir()) and not args.force:
         print(
             f"ctxverify: {target} already exists and is not empty; pass --force to overwrite",
             file=sys.stderr,
         )
         return EXIT_UNUSABLE
-    scaffold_pack(target, pack_id=args.id, title=args.title)
+    try:
+        scaffold_pack(target, pack_id=args.id, title=args.title)
+    except OSError as exc:
+        print(f"ctxverify: could not create {target}: {exc}", file=sys.stderr)
+        return EXIT_UNUSABLE
     print(f"ctxverify: created pack at {target}")
     print(f"  next: ctxv check {target}")
     return EXIT_CLEAN
@@ -245,27 +271,36 @@ def cmd_export(args: argparse.Namespace) -> int:
     from .adapters.llmwiki import export_llmwiki
     from .adapters.obsidian import export_obsidian
 
-    if args.target == "obsidian":
-        pack = export_obsidian(
-            args.vault,
-            pack_id=args.id,
-            include=args.include,
-            exclude=args.exclude,
-        )
-        out = Path(args.out)
-    elif args.target == "llmwiki":
-        pack = export_llmwiki(args.project)
-        out = Path(args.out)
-    elif args.target == "markdown":
-        pack = export_markdown(
-            args.corpus,
-            pack_id=args.id,
-            include=args.include,
-            exclude=args.exclude,
-        )
-        out = Path(args.out)
-    else:  # pragma: no cover - argparse enforces this
+    try:
+        if args.target == "obsidian":
+            pack = export_obsidian(
+                args.vault,
+                pack_id=args.id,
+                include=args.include,
+                exclude=args.exclude,
+            )
+        elif args.target == "llmwiki":
+            pack = export_llmwiki(args.project)
+        elif args.target == "markdown":
+            pack = export_markdown(
+                args.corpus,
+                pack_id=args.id,
+                include=args.include,
+                exclude=args.exclude,
+            )
+        else:  # pragma: no cover - argparse enforces this
+            return EXIT_UNUSABLE
+    except FileNotFoundError as exc:
+        print(f"ctxverify: {exc}", file=sys.stderr)
         return EXIT_UNUSABLE
+    except NotADirectoryError as exc:
+        print(f"ctxverify: {exc}", file=sys.stderr)
+        return EXIT_UNUSABLE
+    except OSError as exc:
+        print(f"ctxverify: {exc}", file=sys.stderr)
+        return EXIT_UNUSABLE
+
+    out = Path(args.out)
 
     from .writer import write_pack
 

@@ -19,9 +19,9 @@ ctxv check examples/broken-pack
 | A relation to an entity and evidence that do not exist | `status.inconsistent` |
 | An inference with no reasoning recorded | `status.inconsistent` |
 | A contradiction still open | `contradiction.unresolved` |
-| A claim whose review window expired a year ago | `freshness.stale` |
+| A claim whose review window expired long ago | `freshness.stale` |
 | Two claims stating exactly the same thing | `duplicate.claim` |
 | A source no evidence points at | `orphan.source` |
 | An entity no claim mentions | `orphan.entity` |
-| A GitHub token sitting in a claim | `hygiene.secret` |
+| An assigned credential sitting in a claim | `hygiene.secret` |
 | An email address in a quote | `hygiene.pii` |

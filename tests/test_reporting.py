@@ -59,7 +59,11 @@ class FilterDoesNotChangeTheVerdictTests(unittest.TestCase):
         self.assertLess(payload["reported"], payload["total_findings"])
         self.assertEqual(payload["total_counts"]["warning"], 8)
         self.assertEqual(payload["counts"]["warning"], 0)
+        self.assertEqual(payload["counts"]["error"], 13)
+        # The listed findings are the errors, and there are thirteen of them.
         self.assertTrue(all(f["severity"] == "error" for f in payload["findings"]))
+        self.assertEqual(len(payload["findings"]), 13)
+        self.assertIn("provenance.missing", {f["rule"] for f in payload["findings"]})
 
     def test_strict_is_reflected_in_the_header_and_the_payload(self) -> None:
         code, output = run_cli("check", str(EXAMPLES / "clean-pack"), "--strict")

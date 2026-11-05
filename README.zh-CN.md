@@ -184,6 +184,7 @@ ctxverify 0.1.0 — examples/clean-pack
 | `ctxv init <dir>` | 生成符合格式的空 pack。参数：`--id`、`--title`、`--force` |
 | `ctxv export obsidian <vault> --out <pack>` | 从 Obsidian 风格 vault 构建 pack。参数：`--id`、`--include`、`--exclude` |
 | `ctxv export llmwiki <project> --out <pack>` | 从 llmwiki 项目构建 pack |
+| `ctxv export markdown <dir> --out <pack>` | 从普通 markdown 目录构建 pack。参数：`--id`、`--include`、`--exclude` |
 | `ctxv verify-actions <actions.jsonl> --root <dir>` | 对照文件系统检查 agent 报告的动作。参数：`--format text\|json` |
 | `ctxv rules` | 列出规则目录 |
 | `ctxv mcp` | 在 stdio 上运行 MCP server。参数：`--root` |
@@ -216,7 +217,7 @@ ctxverify 0.1.0 — examples/clean-pack
 
 ## 规则目录
 
-`ctxverify 0.1.0` 带 16 条规则。
+`ctxverify 0.1.0` 带 16 条针对 pack 的规则，外加 1 条报告 ctxverify 自身 bug 的规则。
 
 | Rule id | 默认严重度 | 检测内容 |
 |---|---|---|
@@ -236,6 +237,7 @@ ctxverify 0.1.0 — examples/clean-pack
 | `hygiene.secret` | error | pack 中的字符串看起来像凭据 |
 | `hygiene.pii` | warning | pack 中的字符串看起来像邮箱、电话或身份证号 |
 | `action.unverified` | error | agent 报告的动作与文件系统矛盾 |
+| `ctxverify.internal` | error | 某个检查抛了异常。这是 ctxverify 的 bug，不是 pack 的问题；`--rule` 与 `--min-severity` 都不会把它过滤掉 |
 
 每条规则的检测逻辑、真实失败场景和修复方法见 [docs/rules.md](docs/rules.md)。
 
@@ -378,7 +380,7 @@ server 实现 `initialize`、`ping`、`tools/list`、`tools/call` 和 `shutdown`
 
 ## 与 llmwiki 及其他工具的关系
 
-`ctxverify` 不是这个领域里第一个 linter，也不这样宣称。最接近的现有工具是 [llmwiki](https://github.com/atomicstrata/llm-wiki-compiler)（MIT）。它把来源编译成 markdown wiki，同时提供 `llmwiki lint` 和 `llmwiki eval`。它的 lint 覆盖断掉的 wikilink、重复概念、损坏或格式错误的引文标记、空页面或孤岛页面、过期页面、低置信度、被矛盾页面、无引文段落、schema 交叉链接违规。它的 eval 报告健康分、引文覆盖率与精确率、judge 评分的引文支持、claim 级引文率、图健康度。
+`ctxverify` 不是这个领域里第一个 linter，也不这样宣称。最接近的现有工具是 [llmwiki](https://github.com/atomicstrata/llm-wiki-compiler)（MIT）。它把来源编译成 markdown wiki，同时提供 `llmwiki lint` 和 `llmwiki eval`。按它自己 2026-11-05 的文档：lint 覆盖断掉的 wikilink、重复概念、损坏或格式错误的引文标记、空页面或孤岛页面、过期页面、低置信度、被矛盾页面、无引文段落、schema 交叉链接违规；eval 报告健康分、引文覆盖率与精确率、judge 评分的引文支持、来源利用率、claim 级引文率、图健康度。那是一个真的 linter，这里比的是适用范围的差别，不是说对方缺基础能力。
 
 那是一个真实的 linter，而且比链接检查器做得多。区别在范围。
 

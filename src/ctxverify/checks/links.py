@@ -13,6 +13,10 @@ def check_links(pack: Pack, ctx: CheckContext) -> list[Finding]:
     findings: list[Finding] = []
     index = ctx.index or LinkIndex()
     known = {normalise_path(path) for path in index.paths}
+    # The resolver folds case, so a resolved path must be compared the same
+    # way: "Notes/A.MD" and "notes/a.md" are the same file on every system
+    # a vault lives on.
+    known_lower = {path.lower() for path in known}
 
     for claim in pack.claims:
         for link in claim.links:
@@ -21,7 +25,8 @@ def check_links(pack: Pack, ctx: CheckContext) -> list[Finding]:
                 continue
             resolved = link.get("resolved")
             if resolved:
-                if normalise_path(str(resolved)) not in known:
+                normalised = normalise_path(str(resolved))
+                if normalised not in known and normalised.lower() not in known_lower:
                     findings.append(
                         Finding(
                             rule="links.broken",
