@@ -346,6 +346,8 @@ repos:
 | `get_claim` | 返回一条 claim 及其 evidence 和来源路径。参数：`path`、`claim_id` |
 | `verify_actions` | 对照文件系统检查报告的动作。参数：`actions`、`root` |
 
+四个工具都显式声明了 MCP 的四个标准标注——`readOnlyHint`、`destructiveHint`、`idempotentHint` 和 `openWorldHint`，且都是布尔值，因为客户端无法推断。四个工具都是只读的：只读文件系统，不写入任何东西。
+
 `check_pack` 的行为与 CLI 一致。它返回 `verdict`（`pass` 或 `fail`）、`status`、`strict`、`counts`（列出的 findings）、`reported`（列出条数）、`total_findings`（本次运行的产出条数）和 `total_counts`（本次运行产生的全部 findings 的计数）。`min_severity` 只过滤列表：`verdict`、`status` 和 `total_counts` 始终描述过滤之前的这次运行。`strict` 会被采纳，因此传入 `strict: true` 时，一个只有 warning、没有 error 的 pack 也会返回 `verdict: "fail"` 和 `status: "fail"`。`get_claim` 对不存在的 claim id 返回 `isError: true`；`list_claims` 传 `limit: 0` 返回空列表。与 CLI 的唯一差别是 pack 读不了：CLI 退出 `2` 且不输出 JSON，而 MCP 工具返回 `isError: true` 并在内容里带上错误信息。
 
 Claude Code，项目级，`.mcp.json`：

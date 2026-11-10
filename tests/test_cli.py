@@ -115,6 +115,19 @@ class McpTests(unittest.TestCase):
         self.assertIn("check_pack", names)
         self.assertIn("verify_actions", names)
 
+    def test_every_tool_declares_the_four_annotations(self) -> None:
+        response = self.handle({"jsonrpc": "2.0", "id": 7, "method": "tools/list", "params": {}}, None)
+        hints = ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint")
+        for tool in response["result"]["tools"]:
+            annotations = tool.get("annotations")
+            self.assertIsNotNone(annotations, f"{tool['name']} declares no annotations")
+            for hint in hints:
+                self.assertIn(hint, annotations, f"{tool['name']} is missing {hint}")
+                self.assertIsInstance(annotations[hint], bool, f"{tool['name']}.{hint} is not a boolean")
+            self.assertTrue(annotations["readOnlyHint"], f"{tool['name']} claims to write")
+            self.assertFalse(annotations["destructiveHint"], f"{tool['name']} claims to be destructive")
+            self.assertFalse(annotations["openWorldHint"], f"{tool['name']} claims to touch the outside world")
+
     def test_tools_call_check_pack(self) -> None:
         response = self.handle(
             {

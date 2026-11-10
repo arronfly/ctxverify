@@ -22,6 +22,21 @@ from ..version import __version__
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ctxverify", "version": __version__}
 
+# Every tool here reads the filesystem and writes nothing. The four standard
+# MCP annotations are declared explicitly because a client cannot infer them,
+# and directories that require the annotations reject a server that omits them.
+READ_ONLY = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+
+def _annotations(title: str) -> dict[str, Any]:
+    return {"title": title, **READ_ONLY}
+
+
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "check_pack",
@@ -30,6 +45,7 @@ TOOLS: list[dict[str, Any]] = [
             "numbering collisions, unresolved contradictions, stale claims and leaked "
             "credentials. Returns findings with severities and an exit-code style verdict."
         ),
+        "annotations": _annotations("Check a context pack"),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -51,6 +67,7 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "list_claims",
         "description": "List the claims in a pack with their status, confidence and evidence count.",
+        "annotations": _annotations("List claims"),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -64,6 +81,7 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_claim",
         "description": "Return one claim with its evidence records and their source locations.",
+        "annotations": _annotations("Get one claim"),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -80,6 +98,7 @@ TOOLS: list[dict[str, Any]] = [
             "action (archived, moved, deleted, wrote, exists) and a path relative to root. "
             "This is the check that catches a report of work that was never done."
         ),
+        "annotations": _annotations("Verify reported actions"),
         "inputSchema": {
             "type": "object",
             "properties": {

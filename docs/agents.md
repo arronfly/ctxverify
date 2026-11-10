@@ -22,6 +22,8 @@ There are four integration points.
 | `get_claim` | `path`, `claim_id` | One claim plus its evidence, source paths, locators and quote previews |
 | `verify_actions` | `actions`, `root` | `{"verified": bool, "findings": [...]}` |
 
+All four tools declare `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true` and `openWorldHint: false`. Nothing the server exposes writes to the pack or the filesystem.
+
 `strict` is honoured by `check_pack`: warnings and information findings make the verdict `fail` when it is set. `get_claim` for an id that is not in the pack returns `isError: true` with the message, rather than a success payload with no claim. `list_claims` with `limit: 0` returns no claims; an absent `limit` defaults to 100.
 
 ### Claude Code

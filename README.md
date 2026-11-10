@@ -347,6 +347,8 @@ If the pack lives in a private repository and you want SARIF in code scanning, u
 | `get_claim` | Return one claim with its evidence and source paths. Arguments: `path`, `claim_id` |
 | `verify_actions` | Check reported actions against the filesystem. Arguments: `actions`, `root` |
 
+Every tool declares the four standard MCP annotations — `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` — as explicit booleans, because a client cannot infer them. All four tools are read-only: they read the filesystem and write nothing.
+
 `check_pack` behaves the same way as the CLI. It returns `verdict` (`pass` or `fail`), `status`, `strict`, `counts` (the shown findings), `reported` (how many were listed), `total_findings` (how many the run produced) and `total_counts` (the counts of every finding the run produced). `min_severity` filters the listing only: the verdict, `status` and `total_counts` always describe the run before the filter. `strict` is honoured, so a pack whose only findings are warnings returns `verdict: "fail"` and `status: "fail"` when you pass `strict: true`. `get_claim` returns `isError: true` for a claim id that is not in the pack, and `list_claims` with `limit: 0` returns no claims. An unreadable pack is the one difference from the CLI: the CLI exits `2` with no JSON, while the tool returns `isError: true` with the message in its content.
 
 Claude Code, project scope, `.mcp.json`:
