@@ -1,6 +1,6 @@
 # ctxverify
 
-[![M8ven Score](https://m8ven.ai/badge/mcp/arronfly-ctxverify-1idj30?v=3c3d59d81c6c02b701066ecfb22791ea)](https://m8ven.ai/mcp/arronfly-ctxverify-1idj30?s=readme)
+[![M8ven Score](https://m8ven.ai/badge/mcp/arronfly-ctxverify-1idj30)](https://m8ven.ai/mcp/arronfly-ctxverify-1idj30?s=readme)
 
 A linter and verifier for agent context packs.
 
