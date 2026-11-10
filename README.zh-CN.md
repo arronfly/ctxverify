@@ -1,5 +1,7 @@
 # ctxverify
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/arronfly-ctxverify-1idj30?v=3c3d59d81c6c02b701066ecfb22791ea)](https://m8ven.ai/mcp/arronfly-ctxverify-1idj30?s=readme)
+
 面向 agent context pack 的 linter 与验证器。
 
 编译器生成知识，linter 判断知识。判断工具不应该属于编译器。
