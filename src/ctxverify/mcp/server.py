@@ -23,20 +23,9 @@ PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "ctxverify", "version": __version__}
 
 # Every tool here reads the filesystem and writes nothing. The four standard
-# MCP annotations are declared explicitly because a client cannot infer them,
-# and directories that require the annotations reject a server that omits them.
-READ_ONLY = {
-    "readOnlyHint": True,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
-}
-
-
-def _annotations(title: str) -> dict[str, Any]:
-    return {"title": title, **READ_ONLY}
-
-
+# MCP annotations are declared inline on each tool: a client cannot infer them,
+# directories that require them reject a server that omits them, and static
+# analyzers only see them when they sit on the tool's own literal.
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "check_pack",
@@ -45,7 +34,16 @@ TOOLS: list[dict[str, Any]] = [
             "numbering collisions, unresolved contradictions, stale claims and leaked "
             "credentials. Returns findings with severities and an exit-code style verdict."
         ),
-        "annotations": _annotations("Check a context pack"),
+        # Inlined (not a helper call) so static analyzers can read the hints
+        # straight off the literal — M8ven's checker could not see through
+        # `_annotations()` and failed the annotation-completeness rule.
+        "annotations": {
+            "title": "Check a context pack",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -67,7 +65,13 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "list_claims",
         "description": "List the claims in a pack with their status, confidence and evidence count.",
-        "annotations": _annotations("List claims"),
+        "annotations": {
+            "title": "List claims",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -81,7 +85,13 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_claim",
         "description": "Return one claim with its evidence records and their source locations.",
-        "annotations": _annotations("Get one claim"),
+        "annotations": {
+            "title": "Get one claim",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -98,7 +108,13 @@ TOOLS: list[dict[str, Any]] = [
             "action (archived, moved, deleted, wrote, exists) and a path relative to root. "
             "This is the check that catches a report of work that was never done."
         ),
-        "annotations": _annotations("Verify reported actions"),
+        "annotations": {
+            "title": "Verify reported actions",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
