@@ -71,7 +71,7 @@ A `check_pack` call returns the same report object as `ctxv check --format json`
 ```json
 {
   "tool": "ctxverify",
-  "tool_version": "0.1.0",
+  "tool_version": "0.1.1",
   "pack": "examples/clean-pack",
   "checked_at": "2026-11-05T14:10:53+00:00",
   "duration_ms": 0,
@@ -160,7 +160,7 @@ Run it against the directory the paths are relative to:
 
 ```bash
 $ ctxv verify-actions examples/actions.jsonl --root examples/obsidian-vault
-ctxverify 0.1.0 — examples/obsidian-vault
+ctxverify 0.1.1 — examples/obsidian-vault
   FAIL  3 error(s), 0 warning(s), 0 info
 
 ERROR   action.unverified — Reported actions really happened

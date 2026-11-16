@@ -26,7 +26,7 @@ An agent finishes a cleanup task and reports this:
 
 ```bash
 $ ctxv verify-actions examples/actions.jsonl --root examples/obsidian-vault
-ctxverify 0.1.0 — examples/obsidian-vault
+ctxverify 0.1.1 — examples/obsidian-vault
   FAIL  3 error(s), 0 warning(s), 0 info
 
 ERROR   action.unverified — Reported actions really happened
@@ -39,7 +39,7 @@ The same class of error appears inside the pack itself. A claim marked `verified
 
 ```bash
 $ ctxv check examples/broken-pack
-ctxverify 0.1.0 — examples/broken-pack
+ctxverify 0.1.1 — examples/broken-pack
   FAIL  13 error(s), 8 warning(s), 2 info
   pack: claims=9, evidence=6, entities=2, relations=1, contradictions=1, sources=4, freshness_entries=2
 
@@ -169,7 +169,7 @@ $ ctxv init demo-pack --id demo --title "Demo Pack"
 ctxverify: created pack at demo-pack
   next: ctxv check demo-pack
 $ ctxv check demo-pack
-ctxverify 0.1.0 — demo-pack
+ctxverify 0.1.1 — demo-pack
   PASS  0 error(s), 0 warning(s), 0 info
   pack: claims=1, evidence=1, entities=1, relations=0, contradictions=0, sources=1, freshness_entries=0
 ```
@@ -179,7 +179,7 @@ The scaffolded pack passes because it is internally consistent, not because it c
 `ctxv check examples/clean-pack` produces the same shape:
 
 ```text
-ctxverify 0.1.0 — examples/clean-pack
+ctxverify 0.1.1 — examples/clean-pack
   PASS  0 error(s), 0 warning(s), 0 info
   pack: claims=2, evidence=2, entities=1, relations=0, contradictions=0, sources=2, freshness_entries=2
 ```
@@ -225,7 +225,7 @@ A pack that exists but is missing required files is exit `1`, not `2`. The tool 
 
 ## Rule catalogue
 
-`ctxverify 0.1.0` ships 16 rules about packs, plus one that reports ctxverify's
+`ctxverify 0.1.1` ships 16 rules about packs, plus one that reports ctxverify's
 own bugs.
 
 | Rule id | Default severity | What it catches |

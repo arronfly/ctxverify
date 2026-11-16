@@ -1,6 +1,6 @@
 # Rule catalogue
 
-This is the reference for every rule in `ctxverify 0.1.0`: sixteen rules about packs, plus `ctxverify.internal`, which reports ctxverify's own bugs. Rule ids are stable and are part of the public contract: CI configurations select them, and reports carry them. Do not rename an existing id.
+This is the reference for every rule in `ctxverify 0.1.1`: sixteen rules about packs, plus `ctxverify.internal`, which reports ctxverify's own bugs. Rule ids are stable and are part of the public contract: CI configurations select them, and reports carry them. Do not rename an existing id.
 
 Each finding has a rule id, a severity, a message, an optional location and an optional hint. The rule registry assigns every rule a default severity, but some rules emit findings at more than one severity depending on what they find. Both levels are documented below.
 

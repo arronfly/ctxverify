@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .version import __version__
 from .model import (
     FORMAT_VERSION,
     Claim,
@@ -39,7 +40,7 @@ def scaffold_pack(directory: str | Path, pack_id: str = "my-pack", title: str | 
         pack_id=pack_id,
         title=title or "My Context Pack",
         description="A context pack. Check it with `ctxv check`.",
-        generator={"name": "ctxverify", "version": "0.1.0"},
+        generator={"name": "ctxverify", "version": __version__},
         sources=[],
     )
     manifest.sources = []

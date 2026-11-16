@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-16
+
+### Changed
+
+- The four MCP tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
+  `openWorldHint`) are now written inline on each tool's own literal instead of
+  being assembled by a shared helper. Runtime behaviour is unchanged — `tools/list`
+  returns the same four booleans per tool — but static analyzers can now read the
+  hints off the tool definition directly. Reported by M8ven's Trust Index.
+
+
 ## [0.1.0] - 2026-11-05
 
 ### Added

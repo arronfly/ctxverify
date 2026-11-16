@@ -26,7 +26,7 @@ agent 会拿到一批知识：claim、来源、引文、实体、矛盾、复核
 
 ```bash
 $ ctxv verify-actions examples/actions.jsonl --root examples/obsidian-vault
-ctxverify 0.1.0 — examples/obsidian-vault
+ctxverify 0.1.1 — examples/obsidian-vault
   FAIL  3 error(s), 0 warning(s), 0 info
 
 ERROR   action.unverified — Reported actions really happened
@@ -39,7 +39,7 @@ ERROR   action.unverified — Reported actions really happened
 
 ```bash
 $ ctxv check examples/broken-pack
-ctxverify 0.1.0 — examples/broken-pack
+ctxverify 0.1.1 — examples/broken-pack
   FAIL  13 error(s), 8 warning(s), 2 info
   pack: claims=9, evidence=6, entities=2, relations=1, contradictions=1, sources=4, freshness_entries=2
 
@@ -169,7 +169,7 @@ $ ctxv init demo-pack --id demo --title "Demo Pack"
 ctxverify: created pack at demo-pack
   next: ctxv check demo-pack
 $ ctxv check demo-pack
-ctxverify 0.1.0 — demo-pack
+ctxverify 0.1.1 — demo-pack
   PASS  0 error(s), 0 warning(s), 0 info
   pack: claims=1, evidence=1, entities=1, relations=0, contradictions=0, sources=1, freshness_entries=0
 ```
@@ -179,7 +179,7 @@ ctxverify 0.1.0 — demo-pack
 `ctxv check examples/clean-pack` 输出同样的结构：
 
 ```text
-ctxverify 0.1.0 — examples/clean-pack
+ctxverify 0.1.1 — examples/clean-pack
   PASS  0 error(s), 0 warning(s), 0 info
   pack: claims=2, evidence=2, entities=1, relations=0, contradictions=0, sources=2, freshness_entries=2
 ```
@@ -225,7 +225,7 @@ ctxverify 0.1.0 — examples/clean-pack
 
 ## 规则目录
 
-`ctxverify 0.1.0` 带 16 条针对 pack 的规则，外加 1 条报告 ctxverify 自身 bug 的规则。
+`ctxverify 0.1.1` 带 16 条针对 pack 的规则，外加 1 条报告 ctxverify 自身 bug 的规则。
 
 | Rule id | 默认严重度 | 检测内容 |
 |---|---|---|

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ..frontmatter import as_list, as_text, parse_frontmatter, split_frontmatter
+from ..version import __version__
 from ..model import CLAIM_STATUSES, Claim, Entity, Evidence, Manifest, Pack, Source
 from ..resolve import LinkIndex, strip_wikilink
 from ..writer import evidence_record
@@ -173,7 +174,7 @@ def export_markdown(
         title=f"{root.name} (markdown export)",
         description=f"Context pack exported from the markdown corpus at {root}.",
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        generator={"name": "ctxverify-adapter-markdown", "version": "0.1.0"},
+        generator={"name": "ctxverify-adapter-markdown", "version": __version__},
         sources=sources,
     )
 
